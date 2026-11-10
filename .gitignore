@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.kotlin/
+
+# 릴리스 서명 키 — 절대 커밋하지 말 것
+signing/
