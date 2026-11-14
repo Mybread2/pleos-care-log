@@ -2,6 +2,14 @@
 
 Pleos Connect(AAOS) 차량용 자동 차계부. 기획: PRD v2.7
 
+## 저장소 구조
+
+| 폴더 | 내용 |
+|---|---|
+| `app/` | Android(AAOS) 앱 소스 |
+| `docs/` | 조사·계약·기획 문서. 색인은 [docs/README.md](docs/README.md) |
+| `mock-fixtures/` | 11/15 Mock 시연용 차량 이벤트 Fixture와 검증 스크립트 |
+
 ## 현재 구현 (백엔드 MVP)
 
 앱 시작 → 차량 값 스냅샷 저장 → 직전 스냅샷과 잔량 비교 → 주유·충전 **추정 기록** 생성 → 60초마다 중간 저장
