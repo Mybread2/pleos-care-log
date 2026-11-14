@@ -1,0 +1,12 @@
+{
+  "name": "autolog-ivi-mock",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node scripts/build-standalone.mjs",
+    "test": "node tests/verify-f03.js && node tests/verify-f02.js && node tests/verify-team-fixtures.js",
+    "test:team": "node tests/verify-team-fixtures.js"
+  }
+}

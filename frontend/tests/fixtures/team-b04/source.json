@@ -1,0 +1,14 @@
+{
+  "repository": "https://github.com/Mybread2/pleos-care-log",
+  "commit": "dd7d0e0c69648b086c52df0c82bdfcb539ae17be",
+  "directory": "mock-fixtures/fixtures",
+  "retrievedOn": "2026-11-14",
+  "files": {
+    "F01_ice_basic_refuel.json": "94ee22a0a22ab15bfe42dedeaf69946c127505bb4899006ed0a21b32c26fd0e2",
+    "F02_ev_ready_charge.json": "f66dbf031119c1c0173144462e5683b3c9a96b48e6ea395a4853654184c31371",
+    "F03_ice_fuel_rise_not_refuel.json": "66922e8acdc63304454641ad7b8cc6fdabf5451f223c36145c18f1128b1a66ed",
+    "F04_ice_signal_gap.json": "f588094eef97772e6d872462ce530a67d1112a4197932c4420f6abd50b9751a4",
+    "F05_ice_duplicate_input.json": "9bd017f00173724c4986a3f608a0c63af9abbedd303686d27e570fe060ca46d1",
+    "F06_ev_short_stop_no_charge.json": "da24c06a77d2e143d0141a3119a33337ff2a93bd01297c257b4cfd7117c2610a"
+  }
+}

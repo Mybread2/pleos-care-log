@@ -1,0 +1,2 @@
+# Preserve the pinned team fixture bytes used by SHA-256 integrity checks.
+tests/fixtures/team-b04/*.json -text

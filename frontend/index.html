@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="AutoLog — 스스로 기록하고 안전하게 보존하는 차량용 차계부. 차량 센서 기반 모의 주행 시연.">
+  <title>AutoLog · 나의 드라이브, 그 모든 기록</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23000'/%3E%3Cpath d='M9 30 18 10h4l9 20M14 23h12M20 13v5' fill='none' stroke='%238ab9f4' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <div class="cockpit">
+    <header class="topbar">
+      <a class="brand" href="#welcome" aria-label="AutoLog 처음 화면"><span class="brand-mark" data-icon="logo"></span><span>AutoLog</span><span class="brand-caption">나의 드라이브, 그 모든 기록</span></a>
+      <div class="vehicle-status"><span class="mock-badge">MOCK DATA</span><span id="vehicle-state" class="vehicle-state"><i></i>차량 신호 대기</span><span class="header-divider"></span><div class="clock"><strong id="vehicle-time">08:00</strong><span>11.15 일요일 · 모의 시각</span></div></div>
+    </header>
+    <aside class="rail" aria-label="화면 탐색">
+      <nav>
+        <button class="rail-button active" data-view="welcome" aria-current="page"><span data-icon="home"></span><span>시작</span></button>
+        <button class="rail-button" data-view="journey"><span data-icon="route"></span><span>주행 기록</span></button>
+        <button class="rail-button" data-view="refuel"><span data-icon="fuel"></span><span>주유 기록</span><i id="refuel-dot" hidden></i></button>
+        <button class="rail-button" data-view="correction"><span data-icon="edit"></span><span>조회·정정</span></button>
+      </nav>
+      <span class="rail-bottom" data-icon="car" aria-hidden="true"></span>
+    </aside>
+    <main id="main-content" tabindex="-1">
+      <section id="welcome" class="screen active" aria-labelledby="welcome-title">
+        <div class="welcome-layout">
+          <div class="welcome-copy">
+            <p class="eyebrow"><span class="tiny-line"></span> YOUR DRIVE, AUTOMATICALLY.</p>
+            <h1 id="welcome-title">운전에 집중하세요.<br>기록은 <span>AutoLog.</span></h1>
+            <p class="welcome-description">스스로 기록하고 안전하게 보존하는<br>차량용 차계부</p>
+            <button class="button primary start-button" data-action="start">모의 주행 시연 시작 <span data-icon="arrow"></span></button>
+            <p class="demo-disclaimer">팀 B04의 모의 차량 데이터로 체험합니다.</p>
+          </div>
+          <div class="welcome-visual"><div class="visual-heading"><span class="live-dot"></span> 매일의 이동이, 하나의 기록으로</div><div id="welcome-map" class="welcome-map"></div><div class="visual-caption"><span>AUTOLOG JOURNEY</span><span>집 <b>→</b> 주유소 <b>→</b> 회사</span></div></div>
+        </div>
+        <div class="welcome-features">
+          <div><span data-icon="route"></span><p><strong>주행은 알아서</strong><span>시동부터 도착까지 자동 기록</span></p></div>
+          <div><span data-icon="fuel"></span><p><strong>빠뜨린 주유도</strong><span>연료 변화를 감지해 알려드려요</span></p></div>
+          <div><span data-icon="shield"></span><p><strong>기록은 정직하게</strong><span>미확인 정보와 원본을 그대로 보존</span></p></div>
+        </div>
+      </section>
+      <section id="journey" class="screen" hidden aria-labelledby="journey-title">
+        <div class="page-heading"><div><p class="eyebrow">JOURNEY</p><h1 id="journey-title">오늘의 주행</h1></div><span id="journey-status" class="status-label"></span></div>
+        <div class="journey-layout">
+          <div class="journey-stage">
+            <div class="journey-metrics"><div><span class="metric-label">총 주행거리</span><p><strong id="total-distance">—</strong><span>km</span></p></div><div><span class="metric-label">실제 운행시간</span><p><strong id="total-duration">—</strong><span>분</span></p></div><span class="metric-footnote" id="journey-metric-note">완료된 구간 기준</span></div>
+            <div id="journey-map" class="journey-map"></div>
+            <div class="map-footer"><span><i class="route-key"></i>모의 주행 경로 · 실제 위치 아님</span><span id="journey-basis">기록 대기</span></div>
+          </div>
+          <div class="journey-detail"><div class="section-heading"><h2>여정 타임라인</h2><span id="leg-count">0개 구간</span></div><div id="legs-timeline" class="legs-timeline"></div><div id="journey-refuel" class="journey-refuel"></div><button class="button primary full" data-view="refuel">주유 기록 확인 <span data-icon="arrow"></span></button></div>
+        </div>
+      </section>
+      <section id="refuel" class="screen" hidden aria-labelledby="refuel-title">
+        <div class="page-heading"><div><p class="eyebrow">ENERGY</p><h1 id="refuel-title">주유 기록</h1></div><span id="refuel-status" class="status-label"></span></div>
+        <div id="refuel-content"></div>
+      </section>
+      <section id="correction" class="screen" hidden aria-labelledby="correction-title">
+        <div class="page-heading"><div><p class="eyebrow">RECORD & CORRECTION</p><h1 id="correction-title">내 기록, 정확하게</h1></div><span class="status-label"><span data-icon="shield"></span>원본 센서 데이터 보존</span></div>
+        <div class="correction-layout">
+          <form id="correction-form" class="amount-panel" novalidate>
+            <div class="section-heading"><h2>주유 결제금액</h2><span>원</span></div>
+            <p class="panel-description">영수증의 실제 결제금액을 입력해 주세요.</p>
+            <fieldset id="amount-controls">
+              <label class="sr-only" for="input-amount-krw">정정할 결제금액 (원)</label>
+              <div class="amount-input-wrap"><input id="input-amount-krw" name="amount" type="text" inputmode="numeric" autocomplete="off" maxlength="9" value="65,000" aria-describedby="correction-message"><span>원</span></div>
+              <div class="presets" aria-label="빠른 금액 선택"><button type="button" data-amount="50000">5만</button><button type="button" data-amount="65000" class="selected" aria-pressed="true">6.5만</button><button type="button" data-amount="70000">7만</button></div>
+              <div class="keypad" aria-label="금액 입력 키패드">
+                <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+                <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+                <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+                <button type="button" data-key="clear" class="key-small">전체 지움</button><button type="button" data-key="0">0</button><button type="button" data-key="backspace" aria-label="한 자리 지우기"><span data-icon="backspace"></span></button>
+              </div>
+              <button id="btn-save-correction" type="submit" class="button primary full">정정 적용 <span data-icon="check"></span></button>
+            </fieldset>
+            <div id="input-lock" class="input-lock" hidden><span data-icon="lock"></span><strong>시동 OFF 후 입력할 수 있어요</strong><p>안전을 위해 시동 ON 동안<br>금액 입력을 잠급니다.</p></div>
+            <p id="correction-message" class="form-message" role="status" aria-live="polite">금액 선택 후 한 번만 적용하면 끝.</p>
+          </form>
+          <div class="audit-panel"><div id="current-record"></div><div class="audit-heading"><div class="section-heading"><h2>정정 이력</h2><span id="correction-count">0건</span></div><p>사용자 입력은 별도의 UserCorrection으로 보존합니다.</p></div><div class="audit-scroll"><table class="audit-table"><caption class="sr-only">결제금액 사용자 정정 이력</caption><thead><tr><th scope="col">정정 시각 · ID</th><th scope="col">항목</th><th scope="col">이전 값</th><th scope="col">변경 값</th></tr></thead><tbody id="corrections-table-body"></tbody></table></div><div id="raw-preservation" class="raw-preservation"></div></div>
+        </div>
+      </section>
+    </main>
+    <footer class="demo-dock" aria-label="모의 시연 제어">
+      <div class="demo-label"><span class="demo-indicator"></span><div><strong>DEMO CONTROL</strong><span>팀 B04 · ICE F01</span></div></div>
+      <div class="event-monitor"><div><span id="step-counter">Step 0 / 11</span><span id="last-signal-ticker" aria-live="polite">시연을 시작해 주세요</span></div><div id="event-progress" class="event-progress" role="progressbar" aria-label="모의 이벤트 진행" aria-valuemin="0" aria-valuemax="11" aria-valuenow="0"></div></div>
+      <div class="demo-actions"><button id="btn-next" class="button secondary" data-action="next"><span data-icon="play"></span>다음 이벤트<span class="sr-only"> 1개 실행</span></button><button id="btn-run-all" class="button secondary" data-action="all"><span data-icon="forward"></span>전체 실행</button><button id="btn-reset" class="button reset" data-action="reset" aria-label="데모 초기화 Reset"><span data-icon="reset"></span><span>초기화</span></button></div>
+    </footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

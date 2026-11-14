@@ -1,0 +1,56 @@
+{
+  "fixtureId": "F04",
+  "title": "ICE 예외 — 시동 ON 중 10분 수신 공백 (상태를 모르는 구간은 운행시간에 보충하지 않음)",
+  "schemaVersion": "0.2",
+  "environment": "MOCK",
+  "vehicleId": "demo-ice-01",
+  "powertrain": "ICE",
+  "mockFeed": { "samplingSec": 300 },
+  "units": {
+    "at": "ISO 8601 +09:00, Mock 신호의 관측 시각",
+    "ODOMETER_KM": "km (누적)",
+    "FUEL_PERCENT": "% (0~100)",
+    "IGNITION": "ON / OFF / ACC",
+    "mockFeed.samplingSec": "초. 시동 ON 동안 Mock adapter가 ODOMETER_KM·FUEL_PERCENT를 보내는 주기"
+  },
+  "covers": ["IGNITION_ON_OFF", "DISTANCE", "SIGNAL_GAP"],
+  "notes": [
+    "모든 값은 가상 Mock 데이터. 실제 차량에서 관측한 이벤트가 아님.",
+    "08:15 샘플이 오지 않아 08:10~08:20 10분 동안 아무 신호도 없음. 시동 OFF가 관측되지 않았으므로 정상 정차(F01)와 다른 '상태 미상' 구간.",
+    "Fixture 가정: 시동 ON 중 연속 이벤트 간격이 mockFeed.samplingSec보다 길면 그 사이 전체를 관측 공백으로 본다. 실제 공백 판정 임계값은 B05/B06에서 결정.",
+    "activeDurationSec = 전체 1800초 − 공백 600초 = 1200초 (공백을 운행으로 임의 보충하지 않음).",
+    "distanceKm는 누적 주행거리 양 끝의 관측값 차이(20113−20100)라 공백 구간의 이동도 포함됨. 거리는 보충이 아니라 관측된 차분.",
+    "[B01 확장 제안] observationGaps는 B01 v0.2에 없는 필드. mockFeed가 있는 Fixture에서만 출력. FR-04(수집 공백) 표시용."
+  ],
+  "events": [
+    { "eventId": "g01", "at": "2026-11-15T08:00:00+09:00", "signal": "IGNITION", "value": "ON" },
+    { "eventId": "g02", "at": "2026-11-15T08:00:00+09:00", "signal": "ODOMETER_KM", "value": 20100 },
+    { "eventId": "g03", "at": "2026-11-15T08:00:00+09:00", "signal": "FUEL_PERCENT", "value": 60 },
+    { "eventId": "g04", "at": "2026-11-15T08:05:00+09:00", "signal": "ODOMETER_KM", "value": 20102 },
+    { "eventId": "g05", "at": "2026-11-15T08:05:00+09:00", "signal": "FUEL_PERCENT", "value": 60 },
+    { "eventId": "g06", "at": "2026-11-15T08:10:00+09:00", "signal": "ODOMETER_KM", "value": 20104 },
+    { "eventId": "g07", "at": "2026-11-15T08:10:00+09:00", "signal": "FUEL_PERCENT", "value": 59 },
+    { "eventId": "g08", "at": "2026-11-15T08:20:00+09:00", "signal": "ODOMETER_KM", "value": 20109 },
+    { "eventId": "g09", "at": "2026-11-15T08:20:00+09:00", "signal": "FUEL_PERCENT", "value": 58 },
+    { "eventId": "g10", "at": "2026-11-15T08:25:00+09:00", "signal": "ODOMETER_KM", "value": 20111 },
+    { "eventId": "g11", "at": "2026-11-15T08:25:00+09:00", "signal": "FUEL_PERCENT", "value": 58 },
+    { "eventId": "g12", "at": "2026-11-15T08:30:00+09:00", "signal": "ODOMETER_KM", "value": 20113 },
+    { "eventId": "g13", "at": "2026-11-15T08:30:00+09:00", "signal": "FUEL_PERCENT", "value": 57 },
+    { "eventId": "g14", "at": "2026-11-15T08:30:00+09:00", "signal": "IGNITION", "value": "OFF" }
+  ],
+  "expected": {
+    "schemaVersion": "0.2",
+    "environment": "MOCK",
+    "vehicleId": "demo-ice-01",
+    "legs": [
+      { "id": "leg-1", "startedAt": "2026-11-15T08:00:00+09:00", "endedAt": "2026-11-15T08:30:00+09:00", "startOdometerKm": 20100, "endOdometerKm": 20113, "activeDurationSec": 1200, "distanceKm": 13 }
+    ],
+    "journeys": [
+      { "id": "journey-1", "legIds": ["leg-1"], "groupingBasis": "MOCK_SCENARIO", "activeDurationSec": 1200, "distanceKm": 13 }
+    ],
+    "energyEvents": [],
+    "observationGaps": [
+      { "from": "2026-11-15T08:10:00+09:00", "to": "2026-11-15T08:20:00+09:00", "durationSec": 600 }
+    ]
+  }
+}

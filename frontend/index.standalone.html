@@ -1,0 +1,1194 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="AutoLog — 스스로 기록하고 안전하게 보존하는 차량용 차계부. 차량 센서 기반 모의 주행 시연.">
+  <title>AutoLog · 나의 드라이브, 그 모든 기록</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23000'/%3E%3Cpath d='M9 30 18 10h4l9 20M14 23h12M20 13v5' fill='none' stroke='%238ab9f4' stroke-width='3'/%3E%3C/svg%3E">
+  <style>
+@charset "UTF-8";
+
+:root { color-scheme: dark; --bg: #000; --surface: #0d1117; --line: #252b33; --text: #f3f5f8; --muted: #9aa4b2; --blue: #a7c9f8; --blue-fill: #99bff2; --amber: #d2b58a; --rail: 104px; --header: 94px; --dock: 106px; font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; }
+button, a, input { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; touch-action: manipulation; }
+button { color: inherit; }
+button:disabled { cursor: default; opacity: .38; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 5px; }
+button:active:not(:disabled) { transform: translateY(1px); }
+a { color: inherit; text-decoration: none; }
+h1, h2, h3, p { margin: 0; }
+[hidden] { display: none !important; }
+.icon { width: 24px; height: 24px; display: block; flex: 0 0 auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.blue { color: var(--blue); }
+.cockpit { display: grid; grid-template-columns: var(--rail) minmax(0,1fr); grid-template-rows: var(--header) minmax(0,1fr) var(--dock); min-height: 100dvh; height: 100dvh; max-width: 2400px; margin-inline: auto; overflow: hidden; }
+.topbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 40px 0 35px; border-bottom: 1px solid var(--line); gap: 24px; }
+.brand { display: flex; align-items: center; gap: 12px; font-size: 27px; font-weight: 650; letter-spacing: -.8px; white-space: nowrap; }
+.brand-mark { color: var(--blue); }
+.brand-mark .icon { width: 32px; height: 32px; stroke-width: 1.8; }
+.brand-caption { margin-left: 17px; border-left: 1px solid #34383e; padding-left: 25px; font-size: 14px; font-weight: 400; letter-spacing: -.2px; color: var(--muted); }
+.vehicle-status { display: flex; align-items: center; gap: 28px; white-space: nowrap; }
+.mock-badge { color: #c4ccd6; font-size: 11px; font-weight: 650; letter-spacing: 1.5px; border: 1px solid #404650; border-radius: 4px; padding: 7px 10px; }
+.vehicle-state { display: flex; gap: 8px; align-items: center; font-size: 14px; color: #c2cbd6; }
+.vehicle-state i, .live-dot, .amber-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; background: var(--blue); flex-shrink: 0; }
+.vehicle-state.locked i, .amber-dot { background: var(--amber); }
+.vehicle-state.locked { color: var(--amber); }
+.header-divider { height: 30px; width: 1px; background: var(--line); }
+.clock { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.clock strong { font-size: 25px; font-weight: 500; letter-spacing: .5px; font-variant-numeric: tabular-nums; }
+.clock span { font-size: 11px; color: var(--muted); }
+.rail { grid-column: 1; grid-row: 2 / 4; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: space-between; padding: 22px 12px 35px; }
+.rail nav { display: flex; flex-direction: column; gap: 13px; }
+.rail-button { position: relative; height: 82px; border: 0; background: none; border-radius: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; color: #9da6b3; font-size: 12px; white-space: nowrap; }
+.rail-button .icon { width: 25px; height: 25px; }
+.rail-button:hover { color: #fff; background: #0c1015; }
+.rail-button.active { color: var(--blue); background: #141e2d; }
+.rail-button.active::before { content: ""; position: absolute; left: -12px; width: 3px; height: 27px; border-radius: 0 2px 2px 0; background: var(--blue); }
+.rail-button i { position: absolute; right: 20px; top: 13px; width: 5px; height: 5px; background: var(--amber); border-radius: 50%; }
+.rail-bottom { color: #7d8794; display: flex; justify-content: center; }
+#main-content { min-height: 0; min-width: 0; overflow-y: auto; padding: 33px 40px 30px; outline: none; }
+.screen { height: 100%; max-width: 1800px; margin-inline: auto; }
+.screen.active { animation: enter .23s ease-out; }
+@keyframes enter { from { opacity: .4; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.eyebrow { color: var(--muted); font-size: 11px; letter-spacing: 2.2px; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+.tiny-line { display: inline-block; width: 25px; height: 2px; background: var(--blue); }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 13px; min-height: 56px; padding: 0 23px; border: 1px solid transparent; border-radius: 6px; font-size: 16px; font-weight: 600; white-space: nowrap; transition: background .15s, border-color .15s; }
+.button .icon { width: 21px; height: 21px; }
+.button.primary { color: #102136; background: var(--blue-fill); }
+.button.primary:hover:not(:disabled) { background: #bdd8fb; }
+.button.secondary { background: #12171e; border-color: #313946; color: #e4eaf2; }
+.button.secondary:hover:not(:disabled) { background: #202937; border-color: #72859e; }
+.button.reset { background: transparent; color: #a7b0bd; padding-inline: 17px; }
+.button.reset:hover { background: #171c24; color: #fff; }
+.button.full { width: 100%; justify-content: space-between; }
+.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 27px; }
+.page-heading .eyebrow { margin-bottom: 7px; font-size: 10px; }
+.page-heading h1 { font-size: 30px; font-weight: 550; letter-spacing: -1.2px; }
+.status-label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 9px; }
+.status-label .icon { width: 17px; height: 17px; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.section-heading h2 { font-size: 19px; font-weight: 550; letter-spacing: -.4px; }
+.section-heading > span { color: var(--muted); font-size: 12px; }
+
+/* Welcome: a quiet instrument surface with a single primary action. */
+#welcome { display: flex; flex-direction: column; justify-content: center; }
+.welcome-layout { display: grid; grid-template-columns: 1fr 1.14fr; align-items: center; gap: 45px; flex: 1; min-height: 340px; }
+.welcome-copy { padding: 8px 0 30px 8px; }
+.welcome-copy h1 { margin-top: 25px; font-size: clamp(36px,3.45vw,61px); font-weight: 500; line-height: 1.45; letter-spacing: -2.7px; }
+.welcome-copy h1 span { color: var(--blue); font-weight: 550; letter-spacing: -1.8px; }
+.welcome-description { color: #aeb8c6; font-size: 19px; line-height: 1.8; margin-top: 24px; letter-spacing: -.5px; }
+.start-button { margin-top: 33px; min-width: 290px; justify-content: space-between; min-height: 62px; font-size: 17px; }
+.demo-disclaimer { font-size: 12px; color: #8b96a5; margin-top: 17px; }
+.welcome-visual { border-top: 1px solid #343f4f; border-bottom: 1px solid #2c3542; background: #0a1017; position: relative; overflow: hidden; }
+.visual-heading { display: flex; gap: 9px; align-items: center; font-size: 13px; padding: 22px 23px 0; color: #c3cfde; position: absolute; z-index: 1; }
+.welcome-map { width: 100%; padding-top: 25px; }
+.route-map { width: 100%; height: 100%; display: block; }
+.welcome-map .route-map { min-height: 280px; }
+.visual-caption { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 20px 23px; background: #0a1017; font-size: 13px; color: #bac7d8; }
+.visual-caption > span:first-child { color: #78889b; font-size: 10px; letter-spacing: 1.8px; }
+.visual-caption b { color: #697b93; margin: 0 8px; font-weight: 400; }
+.welcome-features { display: grid; grid-template-columns: 1fr 1fr 1.15fr; margin-top: 20px; border-top: 1px solid var(--line); padding: 28px 0 8px; }
+.welcome-features > div { display: flex; gap: 17px; align-items: center; padding: 0 28px; border-right: 1px solid var(--line); }
+.welcome-features > div:first-child { padding-left: 8px; }
+.welcome-features > div:last-child { border: none; }
+.welcome-features .icon { color: #8ba5c4; width: 27px; height: 27px; }
+.welcome-features p { display: flex; flex-direction: column; gap: 8px; }
+.welcome-features strong { font-size: 16px; font-weight: 500; }
+.welcome-features p span { color: var(--muted); font-size: 13px; }
+
+/* Journey */
+.journey-layout { display: grid; grid-template-columns: minmax(0,1fr) 355px; gap: 30px; height: calc(100% - 87px); min-height: 420px; }
+.journey-stage { background: #0a1017; border: 1px solid #252e3b; border-radius: 8px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.journey-metrics { display: flex; align-items: center; padding: 28px 30px 15px; gap: 46px; position: relative; z-index: 1; background: #0c121a; }
+.metric-label { color: #a5b1c0; font-size: 14px; }
+.journey-metrics p { display: flex; gap: 11px; align-items: baseline; margin-top: 6px; }
+.journey-metrics strong { font-size: clamp(58px,5.7vw,94px); line-height: 1.1; font-weight: 350; letter-spacing: -4px; font-variant-numeric: tabular-nums; }
+.journey-metrics p > span { color: #b4bfce; font-size: 22px; font-weight: 400; }
+.journey-metrics > div + div { border-left: 1px solid #2f3b49; padding-left: 40px; }
+.metric-footnote { color: #9aa8b8; font-size: 11px; position: absolute; top: 30px; right: 25px; }
+.journey-map { flex: 1; min-height: 180px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+.journey-map .route-map { object-fit: cover; }
+.map-footer { border-top: 1px solid #29333f; color: #8b99aa; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 11px; }
+.map-footer > span { display: flex; align-items: center; gap: 8px; }
+.map-footer > span:last-child { font-size: 10px; letter-spacing: .4px; }
+.route-key { width: 18px; height: 3px; background: var(--blue); border-radius: 3px; }
+.journey-detail { padding: 8px 0 0; display: flex; flex-direction: column; min-height: 0; }
+.journey-detail > .section-heading { padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+.legs-timeline { flex: 1; padding-top: 24px; }
+.leg { display: flex; gap: 15px; }
+.leg-marker { flex: 0 0 35px; height: 35px; border: 1px solid #3b4654; border-radius: 50%; display: grid; place-items: center; color: var(--blue); background: #0c141d; }
+.leg-marker .icon { width: 17px; height: 17px; }
+.leg-info { flex: 1; padding-bottom: 5px; }
+.leg-caption { color: #a0acba; font-size: 11px; }
+.leg-title { display: flex; align-items: center; justify-content: space-between; margin: 5px 0 10px; }
+.leg-title h3 { font-size: 19px; font-weight: 500; letter-spacing: -.6px; }
+.leg-title h3 span { color: #778a9f; margin: 0 5px; }
+.leg-title strong { font-size: 23px; font-weight: 400; }
+.leg-title small { font-size: 13px; color: var(--muted); }
+.leg-info p { font-size: 13px; color: #bdc6d2; font-variant-numeric: tabular-nums; }
+.leg-info p b { font-weight: 400; color: #8e9bad; margin-left: 3px; }
+.leg-info .odometer { margin-top: 7px; color: #8996a7; font-size: 11px; }
+.pause-row { margin: 12px 0 17px 17px; padding: 9px 0 9px 31px; border-left: 1px dashed #4b5561; display: flex; align-items: center; gap: 10px; }
+.pause-row .icon { width: 15px; height: 15px; color: #a4afbd; }
+.pause-row strong { color: #bac5d3; font-size: 12px; font-weight: 500; }
+.pause-row span { display: block; font-size: 11px; color: #8e99a9; margin-top: 6px; }
+.journey-refuel { display: flex; gap: 13px; align-items: center; border-top: 1px solid var(--line); padding: 21px 0; margin-top: 17px; }
+.journey-refuel > .icon { color: var(--blue); width: 23px; height: 23px; }
+.journey-refuel strong { font-weight: 500; font-size: 15px; display: block; }
+.journey-refuel div > span { display: block; margin-top: 7px; font-size: 12px; color: var(--muted); }
+.count-pill { border: 1px solid #3c4655; border-radius: 50%; width: 24px; height: 24px; display: grid; place-items: center; margin-left: auto; color: var(--blue); font-size: 11px; }
+.timeline-empty { padding: 30px 5px; color: var(--muted); }
+.timeline-empty > .icon { color: #7d91ac; width: 32px; height: 32px; margin-bottom: 20px; }
+.timeline-empty strong { font-weight: 500; font-size: 17px; color: #d5deea; }
+.timeline-empty p { font-size: 13px; line-height: 1.9; margin-top: 12px; }
+.recording-line { display: flex; gap: 9px; align-items: center; color: var(--blue); font-size: 13px; margin: 10px 0 0 50px; }
+
+/* Energy */
+#refuel-content { height: calc(100% - 87px); }
+.refuel-layout { display: grid; grid-template-columns: minmax(0,1.17fr) minmax(360px,1fr); gap: 32px; min-height: 100%; }
+.fuel-panel { display: flex; flex-direction: column; justify-content: center; background: #0d131c; border: 1px solid #283344; border-radius: 8px; padding: 32px; }
+.fuel-heading { display: flex; align-items: center; gap: 15px; }
+.fuel-icon { width: 48px; height: 48px; display: grid; place-items: center; background: #1b2b3e; color: var(--blue); border-radius: 9px; }
+.fuel-heading h2 { font-size: 19px; font-weight: 500; letter-spacing: -.5px; }
+.fuel-heading p { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.subtle-tag { color: #aebed1; border: 1px solid #3b485b; border-radius: 4px; font-size: 10px; padding: 5px 7px; letter-spacing: .3px; white-space: nowrap; }
+.fuel-heading .subtle-tag { margin-left: auto; }
+.subtle-tag.amber { color: var(--amber); border-color: #514536; }
+.fuel-comparison { display: flex; justify-content: space-between; align-items: center; padding: 45px 12px 28px; }
+.fuel-comparison > div > span { color: #a2adbc; font-size: 15px; }
+.fuel-comparison p { font-size: clamp(68px,7vw,110px); font-weight: 300; letter-spacing: -4px; line-height: 1.1; margin-top: 10px; }
+.fuel-comparison p small { font-size: 30px; color: #a5b2c3; margin-left: 7px; letter-spacing: -1px; }
+.fuel-comparison > div:last-child p { color: var(--blue); }
+.fuel-comparison > .icon { color: #788ca4; width: 34px; height: 34px; margin-top: 25px; }
+.fuel-gauge { height: 15px; display: flex; background: #26303c; border-radius: 3px; overflow: hidden; }
+.fuel-gauge > div:first-child { background: #55718f; border-right: 3px solid #0d131c; }
+.fuel-gauge > div:last-child { background: var(--blue-fill); }
+.gauge-scale { display: flex; justify-content: space-between; font-size: 11px; color: #8f9db0; margin-top: 12px; }
+.fuel-increase { display: flex; justify-content: space-between; align-items: center; padding: 25px 0; margin-top: 24px; border-top: 1px solid #2b3543; }
+.fuel-increase > span { color: #bec8d4; font-size: 15px; }
+.fuel-increase strong { color: var(--blue); font-size: 33px; font-weight: 400; }
+.fuel-increase small { font-size: 17px; color: #a9bad0; }
+.sensor-note { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; padding-top: 5px; }
+.sensor-note .icon { width: 17px; height: 17px; color: #829ab8; }
+.fuel-record-panel { display: flex; flex-direction: column; padding: 17px 3px 0; }
+.fuel-record-panel > .section-heading { margin-bottom: 17px; }
+.unknown-field { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 25px 0; border-bottom: 1px solid var(--line); }
+.unknown-field > div > span:first-child { color: #b6c0cf; font-size: 16px; display: block; }
+.unknown-field > strong { font-size: 31px; font-weight: 450; letter-spacing: -1px; }
+.provenance { display: block; color: #98a6b7; font-size: 11px; font-weight: 400; letter-spacing: .35px; margin-top: 9px; }
+.provenance.user { color: var(--blue); }
+.unknown-explanation { color: var(--muted); font-size: 14px; line-height: 1.85; margin-top: 26px; }
+.unknown-explanation strong { color: #d6dfec; font-weight: 400; }
+.record-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: auto 0 24px; padding-top: 23px; }
+.record-status > span { color: #9ba8b8; font-size: 11px; }
+.record-status code { font-family: inherit; font-size: 10px; color: #a9b4c3; letter-spacing: .5px; }
+.safety-note { display: flex; gap: 7px; align-items: center; justify-content: center; font-size: 11px; color: #95a0b0; margin: 14px 0 0; }
+.safety-note .icon { width: 13px; height: 13px; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 350px; background: #0b1017; border: 1px solid #252e3c; border-radius: 8px; text-align: center; padding: 30px; }
+.empty-state > .icon { width: 45px; height: 45px; color: #8197b3; margin-bottom: 26px; }
+.empty-state h2 { font-size: 25px; font-weight: 500; }
+.empty-state p { font-size: 15px; line-height: 1.9; color: var(--muted); margin-top: 18px; }
+.empty-state .button { margin-top: 28px; }
+
+/* Correction */
+.correction-layout { display: grid; grid-template-columns: 360px minmax(0,1fr); gap: 38px; height: calc(100% - 87px); min-height: 472px; }
+.amount-panel { position: relative; padding: 23px; background: #10161e; border: 1px solid #2c3747; border-radius: 8px; align-self: start; }
+.panel-description { font-size: 12px; color: #a4afbe; margin-top: 10px; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.amount-input-wrap { display: flex; align-items: center; border-bottom: 1px solid #7999c0; margin-top: 20px; padding: 3px 0 10px; gap: 6px; }
+.amount-input-wrap input { width: 100%; min-width: 0; border: 0; background: transparent; color: #eef5ff; font-size: 43px; font-weight: 350; letter-spacing: -.8px; text-align: right; outline-offset: 0; border-radius: 3px; font-variant-numeric: tabular-nums; }
+.amount-input-wrap > span { color: #aab7c8; font-size: 19px; margin: 10px 2px 0 7px; }
+.presets { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 14px 0; }
+.presets button { border: 1px solid #39475b; border-radius: 5px; background: transparent; min-height: 43px; color: #c0cbd9; font-size: 14px; }
+.presets button.selected { color: var(--blue); background: #25374e; border-color: #6f93c1; }
+.keypad { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin: 0 0 14px; }
+.keypad button { display: grid; place-items: center; background: #1b232e; border: 1px solid transparent; border-radius: 4px; min-height: 47px; font-size: 23px; font-weight: 400; color: #e1e7ee; }
+.keypad button:hover { background: #2c3b4f; }
+.keypad .key-small { color: #aebccc; font-size: 11px; }
+.keypad .icon { width: 20px; height: 20px; color: #b9c8db; }
+.form-message { margin-top: 13px; font-size: 11px; line-height: 1.5; color: #9aa9bb; min-height: 17px; }
+.form-message.success { color: var(--blue); }
+.form-message.error { color: #e1bd97; }
+.input-lock { position: absolute; inset: 99px 14px 49px; background: #10161ef5; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-radius: 6px; z-index: 2; }
+.input-lock > .icon { width: 36px; height: 36px; color: #a2b9d4; margin-bottom: 23px; }
+.input-lock strong { font-size: 16px; font-weight: 500; }
+.input-lock p { font-size: 13px; line-height: 1.9; color: var(--muted); margin-top: 15px; }
+.audit-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 9px 0 0; }
+.saved-amount { display: flex; align-items: center; justify-content: space-between; padding: 24px 0 21px; border-bottom: 1px solid var(--line); }
+.saved-amount > span { color: #aeb9c7; font-size: 14px; }
+.saved-amount > div { text-align: right; }
+.saved-amount strong { font-size: 37px; font-weight: 400; letter-spacing: -1px; }
+.saved-details { display: flex; gap: 28px; padding: 17px 0 23px; border-bottom: 1px solid var(--line); }
+.saved-details > span { font-size: 12px; color: #98a5b7; }
+.saved-details b { margin-left: 10px; font-size: 12px; font-weight: 400; color: #c4cedb; }
+.audit-heading { margin-top: 26px; }
+.audit-heading p { font-size: 12px; color: #95a1b2; margin-top: 9px; }
+.audit-scroll { flex: 1; min-height: 110px; overflow: auto; margin-top: 15px; }
+.audit-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; white-space: nowrap; }
+.audit-table th { color: #95a1b1; font-size: 11px; font-weight: 400; padding: 12px 10px; border-bottom: 1px solid #35404f; background: #090d12; position: sticky; top: 0; z-index: 1; }
+.audit-table th:first-child { padding-left: 0; }
+.audit-table td { border-bottom: 1px solid #252c36; padding: 14px 10px; font-variant-numeric: tabular-nums; }
+.audit-table td:first-child { padding-left: 0; }
+.audit-table small { display: block; font-size: 10px; margin-top: 7px; color: #91a0b3; }
+.audit-table .provenance { font-size: 9px; }
+.audit-table .audit-empty { padding: 27px 0; color: #b9c4d2; text-align: center; line-height: 2; }
+.audit-empty span { color: #8f9daf; font-size: 12px; }
+.raw-preservation { display: flex; align-items: center; gap: 12px; background: #0f1720; border: 1px solid #27364a; border-radius: 6px; padding: 17px; margin-top: 20px; }
+.raw-preservation > .icon { color: #9ab9de; width: 22px; height: 22px; }
+.raw-preservation strong { font-weight: 500; font-size: 12px; color: #c9d5e5; }
+.raw-preservation > .subtle-tag { margin-left: auto; }
+.raw-values { display: flex; gap: 16px; margin-top: 9px; color: #8fa0b6; font-size: 11px; }
+.raw-values b { font-weight: 500; color: #c4d0df; margin-left: 4px; }
+
+/* Always available demo transport. */
+.demo-dock { grid-column: 2; border-top: 1px solid var(--line); display: flex; align-items: center; padding: 0 35px; gap: 28px; background: #06080b; }
+.demo-label { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+.demo-indicator { width: 7px; height: 7px; border: 1px solid #9eafc3; border-radius: 50%; }
+.demo-label strong { display: block; font-size: 10px; letter-spacing: 1.3px; font-weight: 500; color: #b9c4d3; }
+.demo-label div > span { display: block; font-size: 11px; color: #8290a3; margin-top: 7px; }
+.event-monitor { flex: 1; min-width: 0; max-width: 600px; }
+.event-monitor > div:first-child { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+#step-counter { font-size: 12px; color: #ced8e7; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#last-signal-ticker { font-size: 10px; color: #8f9daf; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.event-progress { margin-top: 12px; display: flex; gap: 4px; }
+.event-progress i { flex: 1; height: 3px; background: #2b3440; border-radius: 2px; }
+.event-progress i.done { background: #95b9e9; }
+.demo-actions { display: flex; gap: 10px; margin-left: auto; flex-shrink: 0; }
+.demo-actions .button { min-height: 48px; padding-inline: 17px; font-size: 13px; gap: 8px; font-weight: 500; }
+.demo-actions .icon { width: 16px; height: 16px; }
+.toast { position: fixed; bottom: calc(var(--dock) + 18px); left: calc(50% + 40px); transform: translateX(-50%); padding: 17px 26px; background: #24364d; color: #e3efff; border: 1px solid #617d9f; border-radius: 7px; font-size: 14px; box-shadow: 0 8px 25px #0008; z-index: 10; }
+
+@media (min-width: 1800px) { #main-content { padding: 40px 55px; } .journey-layout { grid-template-columns: minmax(0,1fr) 420px; gap: 40px; } .correction-layout { grid-template-columns: 400px minmax(0,1fr); gap: 55px; } .keypad button { min-height: 54px; } .welcome-layout { gap: 80px; } .fuel-panel { padding: 40px; } }
+@media (max-width: 1250px) { :root { --rail: 88px; --header: 82px; --dock: 96px; } .topbar { padding: 0 26px; } .brand-caption { display: none; } .vehicle-status { gap: 20px; } #main-content { padding: 25px 28px; } .rail { padding-inline: 9px; } .rail-button.active::before { left: -9px; } .rail-button { height: 76px; } .journey-layout { grid-template-columns: minmax(0,1fr) 320px; gap: 23px; } .journey-metrics { padding: 24px; gap: 25px; } .journey-metrics > div + div { padding-left: 25px; } .journey-metrics strong { font-size: 65px; } .metric-footnote { top: 10px; font-size: 9px; right: 16px; } .welcome-layout { gap: 23px; } .welcome-copy h1 { font-size: 40px; } .welcome-description { font-size: 17px; } .welcome-features > div { padding-inline: 20px; gap: 13px; } .welcome-features p span { font-size: 11px; } .demo-dock { padding-inline: 25px; gap: 20px; } .demo-label { display: none; } .correction-layout { grid-template-columns: 315px minmax(0,1fr); gap: 27px; } .amount-panel { padding: 19px; } .fuel-panel { padding: 24px; } .fuel-heading { gap: 10px; } .fuel-heading h2 { font-size: 17px; } .fuel-heading .subtle-tag { font-size: 8px; } .refuel-layout { gap: 26px; } .saved-details { flex-wrap: wrap; gap: 10px 20px; } }
+@media (min-width: 901px) and (max-height: 800px) { :root { --header: 76px; --dock: 88px; } #main-content { padding-top: 22px; padding-bottom: 22px; } .page-heading { margin-bottom: 20px; } .page-heading h1 { font-size: 27px; } .journey-layout, .correction-layout { height: calc(100% - 75px); min-height: 0; } #refuel-content { height: calc(100% - 75px); } .journey-metrics { padding-top: 21px; padding-bottom: 10px; } .journey-metrics strong { font-size: 65px; } .journey-detail > .section-heading { padding-bottom: 15px; } .legs-timeline { padding-top: 18px; } .pause-row { margin-block: 8px 13px; padding-block: 6px; } .journey-refuel { padding-block: 15px; margin-top: 10px; } .leg-info .odometer { margin-top: 5px; } .leg-title { margin-bottom: 7px; } .button { min-height: 50px; } .amount-panel { padding: 17px 20px; } .amount-input-wrap { margin-top: 12px; padding-bottom: 7px; } .amount-input-wrap input { font-size: 37px; } .presets { margin-block: 10px; } .presets button { min-height: 40px; } .keypad { gap: 4px; margin-bottom: 10px; } .keypad button { min-height: 43px; font-size: 21px; } .keypad .key-small { font-size: 11px; } .form-message { margin-top: 10px; } .saved-amount { padding-block: 17px; } .saved-amount strong { font-size: 32px; } .saved-details { padding-bottom: 16px; } .audit-heading { margin-top: 20px; } .raw-preservation { padding: 14px; margin-top: 15px; } .fuel-comparison { padding-top: 28px; padding-bottom: 22px; } .fuel-comparison p { font-size: 78px; } .fuel-increase { margin-top: 18px; padding-block: 17px; } .unknown-field { padding-block: 21px; } .unknown-explanation { margin-top: 21px; } .record-status { margin-bottom: 18px; padding-top: 20px; } .welcome-copy { padding-bottom: 15px; } .welcome-copy h1 { font-size: 41px; margin-top: 19px; line-height: 1.4; } .welcome-description { margin-top: 17px; font-size: 16px; } .start-button { margin-top: 25px; min-height: 56px; } .demo-disclaimer { font-size: 11px; margin-top: 14px; } .welcome-features { padding-top: 22px; margin-top: 15px; } .welcome-map .route-map { min-height: 235px; } .visual-caption { padding-block: 15px; } }
+@media (max-width: 900px) { :root { --rail: 77px; --header: 80px; --dock: 124px; } .topbar { padding-inline: 19px; } .brand { font-size: 24px; gap: 8px; } .vehicle-status { gap: 14px; } .vehicle-state { font-size: 11px; } .clock strong { font-size: 23px; } .mock-badge { font-size: 9px; padding: 6px 7px; } .header-divider { display: none; } .clock span { font-size: 9px; } #main-content { padding: 25px 23px; } .rail { padding-inline: 7px; } .rail-button { font-size: 10px; height: 75px; } .rail-button.active::before { left: -7px; } .screen { height: auto; min-height: 100%; } .welcome-layout { grid-template-columns: 1fr; gap: 30px; } .welcome-copy { padding: 12px 0 0; } .welcome-copy h1 { font-size: 43px; } .welcome-visual { margin-bottom: 15px; } .welcome-features { grid-template-columns: 1fr; gap: 23px; padding-bottom: 18px; } .welcome-features > div { border: none; padding: 0; } .welcome-features > div:first-child { padding: 0; } .welcome-features p span { font-size: 13px; } .journey-layout { grid-template-columns: 1fr; height: auto; min-height: 0; } .journey-stage { min-height: 450px; } .journey-detail { padding-top: 10px; } .legs-timeline { padding-top: 25px; } .leg { padding-block: 5px; } .journey-refuel { margin-top: 25px; } .journey-detail > .button { margin-bottom: 10px; } .refuel-layout { grid-template-columns: 1fr; } .fuel-panel { min-height: 450px; } .fuel-record-panel { padding-top: 0; padding-bottom: 15px; } .record-status { margin-top: 10px; } .correction-layout { grid-template-columns: 1fr; height: auto; } .amount-panel { max-width: 480px; width: 100%; justify-self: center; padding: 25px; } .keypad button { min-height: 52px; } .audit-scroll { min-height: 150px; max-height: 300px; } .audit-panel { padding-bottom: 15px; } .demo-dock { padding: 14px 18px; gap: 14px; flex-wrap: wrap; align-content: center; } .event-monitor { flex-basis: 100%; max-width: none; } .event-progress { margin-top: 8px; } .demo-actions { width: 100%; margin: 0; gap: 8px; } .demo-actions .button { flex: 1; min-height: 43px; padding-inline: 10px; font-size: 12px; } .demo-actions .button.reset { flex: .65; } .page-heading { align-items: flex-start; } .status-label { font-size: 10px; padding-top: 22px; } .page-heading h1 { font-size: 28px; } .toast { left: calc(50% + 25px); width: max-content; max-width: calc(100% - 110px); font-size: 12px; text-align: center; } }
+@media (max-width: 560px) { :root { --rail: 63px; --header: 74px; } .topbar { padding-inline: 13px; } .brand { font-size: 20px; } .brand-mark .icon { width: 25px; height: 25px; } .vehicle-status { gap: 10px; } .vehicle-state { display: none; } .clock strong { font-size: 21px; } .clock span { font-size: 8px; } .mock-badge { font-size: 8px; letter-spacing: .7px; } #main-content { padding: 23px 16px; } .rail { padding-inline: 4px; padding-top: 16px; } .rail-button.active::before { left: -4px; } .rail-button .icon { width: 22px; height: 22px; } .rail-button { height: 69px; font-size: 9px; } .rail nav { gap: 10px; } .welcome-copy h1 { font-size: 32px; letter-spacing: -2px; } .eyebrow { font-size: 8px; letter-spacing: 1.1px; } .welcome-description { font-size: 15px; } .start-button { min-width: 0; width: 100%; font-size: 14px; padding-inline: 16px; margin-top: 24px; } .demo-disclaimer { font-size: 10px; line-height: 1.8; } .welcome-visual .visual-heading { padding: 15px 12px; font-size: 10px; } .welcome-map .route-map { min-height: 210px; } .visual-caption { padding: 13px 12px; font-size: 10px; } .visual-caption > span:first-child { font-size: 7px; letter-spacing: .7px; } .visual-caption b { margin-inline: 3px; } .page-heading { gap: 10px; flex-wrap: wrap; margin-bottom: 20px; } .page-heading h1 { font-size: 25px; } .status-label { padding-top: 0; font-size: 10px; } .journey-metrics { gap: 20px; padding: 30px 17px 14px; } .journey-metrics strong { font-size: 52px; letter-spacing: -2px; } .journey-metrics p > span { font-size: 17px; } .journey-metrics > div + div { padding-left: 18px; } .metric-label { font-size: 11px; } .journey-stage { min-height: 350px; } .map-footer { padding-inline: 12px; font-size: 8px; } .map-footer > span:last-child { font-size: 7px; } .fuel-panel { padding: 20px; min-height: 400px; } .fuel-heading { flex-wrap: wrap; } .fuel-heading h2 { font-size: 15px; } .fuel-heading p { font-size: 10px; } .fuel-heading .subtle-tag { display: none; } .fuel-icon { width: 36px; height: 36px; } .fuel-comparison { padding: 35px 0 23px; } .fuel-comparison p { font-size: 68px; } .fuel-comparison p small { font-size: 22px; } .fuel-comparison > .icon { width: 23px; height: 23px; } .sensor-note { font-size: 10px; line-height: 1.8; } .unknown-field > strong { font-size: 26px; } .unknown-explanation { font-size: 12px; } .amount-panel { padding: 18px; } .panel-description { font-size: 10px; } .amount-input-wrap input { font-size: 35px; } .saved-details { flex-direction: column; gap: 10px; } .audit-table { font-size: 11px; } .audit-table th { font-size: 9px; } .audit-table small { font-size: 8px; } .raw-preservation { padding: 13px 10px; gap: 9px; flex-wrap: wrap; } .raw-preservation strong { font-size: 10px; } .raw-preservation > .subtle-tag { display: none; } .raw-values { font-size: 10px; gap: 10px; } .demo-actions .button { font-size: 10px; gap: 5px; padding-inline: 5px; } .demo-actions .icon { width: 13px; height: 13px; } #last-signal-ticker { font-size: 8px; } #step-counter { font-size: 10px; } .empty-state { padding-inline: 15px; } .empty-state h2 { font-size: 20px; } .empty-state p { font-size: 12px; } }
+/* Keep all primary actions visible on a 1280 × 720 cockpit. */
+@media (min-width: 901px) and (max-height: 800px) {
+  #main-content { padding-top: 18px; padding-bottom: 18px; }
+  .page-heading { margin-bottom: 18px; }
+  .page-heading .eyebrow { font-size: 9px; margin-bottom: 6px; }
+  .journey-layout, .correction-layout { height: calc(100% - 72px); }
+  #refuel-content { height: calc(100% - 72px); }
+  .journey-detail > .section-heading { padding-bottom: 12px; }
+  .legs-timeline { padding-top: 14px; }
+  .leg-marker { flex-basis: 31px; height: 31px; }
+  .leg { gap: 13px; }
+  .leg-caption { font-size: 10px; }
+  .leg-title { margin: 4px 0 6px; }
+  .leg-title h3 { font-size: 18px; }
+  .leg-title strong { font-size: 22px; }
+  .leg-info p { font-size: 12px; }
+  .leg-info .odometer { margin-top: 4px; font-size: 10px; }
+  .pause-row { margin: 6px 0 10px 15px; padding: 6px 0 6px 28px; }
+  .pause-row span { font-size: 10px; margin-top: 4px; }
+  .journey-refuel { padding-block: 12px; margin-top: 8px; }
+  .journey-refuel strong { font-size: 14px; }
+  .journey-refuel div > span { margin-top: 5px; font-size: 11px; }
+  .amount-panel { padding: 14px 20px; }
+  .amount-panel .section-heading h2 { font-size: 18px; line-height: 1.3; }
+  .panel-description { display: none; }
+  .amount-input-wrap { margin-top: 8px; padding: 3px 0 8px; }
+  .amount-input-wrap input { font-size: 34px; line-height: 1.15; }
+  .presets { margin-block: 8px; }
+  .presets button { min-height: 44px; }
+  .keypad { gap: 3px; margin-bottom: 10px; }
+  .keypad button { min-height: 44px; }
+  .form-message { margin-top: 8px; }
+  .audit-heading { margin-top: 17px; }
+  .audit-scroll { min-height: 90px; }
+  .audit-table .audit-empty { padding-block: 18px; }
+}
+@media (min-width: 1300px) and (min-aspect-ratio: 2/1) {
+  .journey-stage { display: grid; grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .journey-metrics { flex-direction: column; align-items: flex-start; justify-content: center; padding: 28px; gap: 25px; }
+  .journey-metrics > div + div { width: 100%; border-left: 0; padding-left: 0; border-top: 1px solid #2f3b49; padding-top: 23px; }
+  .journey-metrics strong { font-size: 76px; }
+  .metric-footnote { inset: auto auto 15px 28px; font-size: 10px; }
+  .journey-map { min-height: 0; }
+  .map-footer { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+</style>
+</head>
+<body>
+  <div class="cockpit">
+    <header class="topbar">
+      <a class="brand" href="#welcome" aria-label="AutoLog 처음 화면"><span class="brand-mark" data-icon="logo"></span><span>AutoLog</span><span class="brand-caption">나의 드라이브, 그 모든 기록</span></a>
+      <div class="vehicle-status"><span class="mock-badge">MOCK DATA</span><span id="vehicle-state" class="vehicle-state"><i></i>차량 신호 대기</span><span class="header-divider"></span><div class="clock"><strong id="vehicle-time">08:00</strong><span>11.15 일요일 · 모의 시각</span></div></div>
+    </header>
+    <aside class="rail" aria-label="화면 탐색">
+      <nav>
+        <button class="rail-button active" data-view="welcome" aria-current="page"><span data-icon="home"></span><span>시작</span></button>
+        <button class="rail-button" data-view="journey"><span data-icon="route"></span><span>주행 기록</span></button>
+        <button class="rail-button" data-view="refuel"><span data-icon="fuel"></span><span>주유 기록</span><i id="refuel-dot" hidden></i></button>
+        <button class="rail-button" data-view="correction"><span data-icon="edit"></span><span>조회·정정</span></button>
+      </nav>
+      <span class="rail-bottom" data-icon="car" aria-hidden="true"></span>
+    </aside>
+    <main id="main-content" tabindex="-1">
+      <section id="welcome" class="screen active" aria-labelledby="welcome-title">
+        <div class="welcome-layout">
+          <div class="welcome-copy">
+            <p class="eyebrow"><span class="tiny-line"></span> YOUR DRIVE, AUTOMATICALLY.</p>
+            <h1 id="welcome-title">운전에 집중하세요.<br>기록은 <span>AutoLog.</span></h1>
+            <p class="welcome-description">스스로 기록하고 안전하게 보존하는<br>차량용 차계부</p>
+            <button class="button primary start-button" data-action="start">모의 주행 시연 시작 <span data-icon="arrow"></span></button>
+            <p class="demo-disclaimer">팀 B04의 모의 차량 데이터로 체험합니다.</p>
+          </div>
+          <div class="welcome-visual"><div class="visual-heading"><span class="live-dot"></span> 매일의 이동이, 하나의 기록으로</div><div id="welcome-map" class="welcome-map"></div><div class="visual-caption"><span>AUTOLOG JOURNEY</span><span>집 <b>→</b> 주유소 <b>→</b> 회사</span></div></div>
+        </div>
+        <div class="welcome-features">
+          <div><span data-icon="route"></span><p><strong>주행은 알아서</strong><span>시동부터 도착까지 자동 기록</span></p></div>
+          <div><span data-icon="fuel"></span><p><strong>빠뜨린 주유도</strong><span>연료 변화를 감지해 알려드려요</span></p></div>
+          <div><span data-icon="shield"></span><p><strong>기록은 정직하게</strong><span>미확인 정보와 원본을 그대로 보존</span></p></div>
+        </div>
+      </section>
+      <section id="journey" class="screen" hidden aria-labelledby="journey-title">
+        <div class="page-heading"><div><p class="eyebrow">JOURNEY</p><h1 id="journey-title">오늘의 주행</h1></div><span id="journey-status" class="status-label"></span></div>
+        <div class="journey-layout">
+          <div class="journey-stage">
+            <div class="journey-metrics"><div><span class="metric-label">총 주행거리</span><p><strong id="total-distance">—</strong><span>km</span></p></div><div><span class="metric-label">실제 운행시간</span><p><strong id="total-duration">—</strong><span>분</span></p></div><span class="metric-footnote" id="journey-metric-note">완료된 구간 기준</span></div>
+            <div id="journey-map" class="journey-map"></div>
+            <div class="map-footer"><span><i class="route-key"></i>모의 주행 경로 · 실제 위치 아님</span><span id="journey-basis">기록 대기</span></div>
+          </div>
+          <div class="journey-detail"><div class="section-heading"><h2>여정 타임라인</h2><span id="leg-count">0개 구간</span></div><div id="legs-timeline" class="legs-timeline"></div><div id="journey-refuel" class="journey-refuel"></div><button class="button primary full" data-view="refuel">주유 기록 확인 <span data-icon="arrow"></span></button></div>
+        </div>
+      </section>
+      <section id="refuel" class="screen" hidden aria-labelledby="refuel-title">
+        <div class="page-heading"><div><p class="eyebrow">ENERGY</p><h1 id="refuel-title">주유 기록</h1></div><span id="refuel-status" class="status-label"></span></div>
+        <div id="refuel-content"></div>
+      </section>
+      <section id="correction" class="screen" hidden aria-labelledby="correction-title">
+        <div class="page-heading"><div><p class="eyebrow">RECORD & CORRECTION</p><h1 id="correction-title">내 기록, 정확하게</h1></div><span class="status-label"><span data-icon="shield"></span>원본 센서 데이터 보존</span></div>
+        <div class="correction-layout">
+          <form id="correction-form" class="amount-panel" novalidate>
+            <div class="section-heading"><h2>주유 결제금액</h2><span>원</span></div>
+            <p class="panel-description">영수증의 실제 결제금액을 입력해 주세요.</p>
+            <fieldset id="amount-controls">
+              <label class="sr-only" for="input-amount-krw">정정할 결제금액 (원)</label>
+              <div class="amount-input-wrap"><input id="input-amount-krw" name="amount" type="text" inputmode="numeric" autocomplete="off" maxlength="9" value="65,000" aria-describedby="correction-message"><span>원</span></div>
+              <div class="presets" aria-label="빠른 금액 선택"><button type="button" data-amount="50000">5만</button><button type="button" data-amount="65000" class="selected" aria-pressed="true">6.5만</button><button type="button" data-amount="70000">7만</button></div>
+              <div class="keypad" aria-label="금액 입력 키패드">
+                <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+                <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+                <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+                <button type="button" data-key="clear" class="key-small">전체 지움</button><button type="button" data-key="0">0</button><button type="button" data-key="backspace" aria-label="한 자리 지우기"><span data-icon="backspace"></span></button>
+              </div>
+              <button id="btn-save-correction" type="submit" class="button primary full">정정 적용 <span data-icon="check"></span></button>
+            </fieldset>
+            <div id="input-lock" class="input-lock" hidden><span data-icon="lock"></span><strong>시동 OFF 후 입력할 수 있어요</strong><p>안전을 위해 시동 ON 동안<br>금액 입력을 잠급니다.</p></div>
+            <p id="correction-message" class="form-message" role="status" aria-live="polite">금액 선택 후 한 번만 적용하면 끝.</p>
+          </form>
+          <div class="audit-panel"><div id="current-record"></div><div class="audit-heading"><div class="section-heading"><h2>정정 이력</h2><span id="correction-count">0건</span></div><p>사용자 입력은 별도의 UserCorrection으로 보존합니다.</p></div><div class="audit-scroll"><table class="audit-table"><caption class="sr-only">결제금액 사용자 정정 이력</caption><thead><tr><th scope="col">정정 시각 · ID</th><th scope="col">항목</th><th scope="col">이전 값</th><th scope="col">변경 값</th></tr></thead><tbody id="corrections-table-body"></tbody></table></div><div id="raw-preservation" class="raw-preservation"></div></div>
+        </div>
+      </section>
+    </main>
+    <footer class="demo-dock" aria-label="모의 시연 제어">
+      <div class="demo-label"><span class="demo-indicator"></span><div><strong>DEMO CONTROL</strong><span>팀 B04 · ICE F01</span></div></div>
+      <div class="event-monitor"><div><span id="step-counter">Step 0 / 11</span><span id="last-signal-ticker" aria-live="polite">시연을 시작해 주세요</span></div><div id="event-progress" class="event-progress" role="progressbar" aria-label="모의 이벤트 진행" aria-valuemin="0" aria-valuemax="11" aria-valuenow="0"></div></div>
+      <div class="demo-actions"><button id="btn-next" class="button secondary" data-action="next"><span data-icon="play"></span>다음 이벤트<span class="sr-only"> 1개 실행</span></button><button id="btn-run-all" class="button secondary" data-action="all"><span data-icon="forward"></span>전체 실행</button><button id="btn-reset" class="button reset" data-action="reset" aria-label="데모 초기화 Reset"><span data-icon="reset"></span><span>초기화</span></button></div>
+    </footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script>
+(() => {
+'use strict';
+// src/mock/iceFixture.js
+/**
+ * ICE 원시 이벤트 Fixture v0.2
+ * Reference: Notion B01-A. Mock 공통 데이터 계약 v0.2 Section 4
+ */
+const ICE_MOCK_FIXTURE_V02 = {
+  schemaVersion: '0.2',
+  environment: 'MOCK',
+  vehicleId: 'demo-ice-01',
+  powertrain: 'ICE',
+  events: [
+    {
+      eventId: 'e01',
+      at: '2026-11-15T08:00:00+09:00',
+      signal: 'IGNITION',
+      value: 'ON',
+    },
+    {
+      eventId: 'e02',
+      at: '2026-11-15T08:00:00+09:00',
+      signal: 'ODOMETER_KM',
+      value: 12340,
+    },
+    {
+      eventId: 'e03',
+      at: '2026-11-15T08:00:00+09:00',
+      signal: 'FUEL_PERCENT',
+      value: 30,
+    },
+    {
+      eventId: 'e04',
+      at: '2026-11-15T08:15:00+09:00',
+      signal: 'ODOMETER_KM',
+      value: 12345,
+    },
+    {
+      eventId: 'e05',
+      at: '2026-11-15T08:15:00+09:00',
+      signal: 'FUEL_PERCENT',
+      value: 30,
+    },
+    {
+      eventId: 'e06',
+      at: '2026-11-15T08:15:00+09:00',
+      signal: 'IGNITION',
+      value: 'OFF',
+    },
+    {
+      eventId: 'e07',
+      at: '2026-11-15T08:25:00+09:00',
+      signal: 'FUEL_PERCENT',
+      value: 75,
+    },
+    {
+      eventId: 'e08',
+      at: '2026-11-15T08:25:00+09:00',
+      signal: 'IGNITION',
+      value: 'ON',
+    },
+    {
+      eventId: 'e09',
+      at: '2026-11-15T08:25:00+09:00',
+      signal: 'ODOMETER_KM',
+      value: 12345,
+    },
+    {
+      eventId: 'e10',
+      at: '2026-11-15T08:45:00+09:00',
+      signal: 'ODOMETER_KM',
+      value: 12352,
+    },
+    {
+      eventId: 'e11',
+      at: '2026-11-15T08:45:00+09:00',
+      signal: 'IGNITION',
+      value: 'OFF',
+    },
+  ],
+};
+
+
+// src/mock/MockVehicleDataSource.js
+
+/**
+ * MockVehicleDataSource (ES Module)
+ * F03 핵심 어댑터: 가상 차량 신호 스트림 공급 및 데모 단계 제어 (Next/Reset)
+ */
+class MockVehicleDataSource {
+  constructor(fixture = ICE_MOCK_FIXTURE_V02) {
+    this.fixture = JSON.parse(JSON.stringify(fixture));
+    this.currentEventIndex = 0;
+    this.publishedEvents = [];
+    this.listeners = [];
+  }
+
+  subscribe(callback) {
+    this.listeners.push(callback);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== callback);
+    };
+  }
+
+  notify(event) {
+    this.listeners.forEach((listener) => listener(event, [...this.publishedEvents]));
+  }
+
+  next() {
+    if (this.currentEventIndex >= this.fixture.events.length) {
+      return null;
+    }
+    const event = this.fixture.events[this.currentEventIndex];
+    this.publishedEvents.push(event);
+    this.currentEventIndex++;
+    this.notify(event);
+    return event;
+  }
+
+  emitAll() {
+    while (this.currentEventIndex < this.fixture.events.length) {
+      const event = this.fixture.events[this.currentEventIndex];
+      this.publishedEvents.push(event);
+      this.currentEventIndex++;
+      this.notify(event);
+    }
+    return [...this.publishedEvents];
+  }
+
+  reset() {
+    this.currentEventIndex = 0;
+    this.publishedEvents = [];
+    this.notify(null);
+  }
+
+  getPublishedEvents() {
+    return [...this.publishedEvents];
+  }
+
+  getRawFixtureEvents() {
+    return [...this.fixture.events];
+  }
+
+  hasNext() {
+    return this.currentEventIndex < this.fixture.events.length;
+  }
+
+  getCurrentStep() {
+    return this.currentEventIndex;
+  }
+
+  getTotalSteps() {
+    return this.fixture.events.length;
+  }
+}
+
+
+// src/core/processMockRecords.js
+// B04 assumptions are for synthetic fixtures only. This is not a Pleos SDK
+// adapter or an adopted real-vehicle refuelling/gap detection policy.
+const mockField = (value, provenance) => ({ value, provenance });
+const unknownMockField = () => mockField(null, 'UNKNOWN');
+
+function processMockRecords(events, vehicleId, options = {}) {
+  const isEv = options.powertrain === 'EV' || (!options.powertrain && events.some((event) => event.signal === 'READY'));
+  const powerSignal = isEv ? 'READY' : 'IGNITION';
+  const levelSignal = isEv ? 'SOC_PERCENT' : 'FUEL_PERCENT';
+  // B04's expected results are invariant across the entire 3–44%p range.
+  // The default is the lower end of that test range, not a product decision.
+  const minimumIncrease = options.minimumEnergyIncreasePercent ?? 3;
+  const samplingSec = options.samplingSec;
+  if (!Number.isFinite(minimumIncrease) || minimumIncrease <= 0) throw new Error('Invalid mock energy increase threshold');
+  if (samplingSec !== undefined && (!Number.isFinite(samplingSec) || samplingSec <= 0)) throw new Error('Invalid mock sampling interval');
+
+  const ids = new Map();
+  const observations = new Set();
+  const unique = [];
+  for (const event of events) {
+    if (!Number.isFinite(Date.parse(event.at))) throw new Error('Invalid mock observation time');
+    const observation = JSON.stringify([event.signal, event.at, event.value]);
+    if (ids.has(event.eventId) && ids.get(event.eventId) !== observation) {
+      throw new Error(`Conflicting mock event ID: ${event.eventId}`);
+    }
+    ids.set(event.eventId, observation);
+    if (observations.has(observation)) continue;
+    observations.add(observation);
+    unique.push(event);
+  }
+  // Process a timestamp's readings before its power transition. Never reorder
+  // or delete raw source events; only this derived working list is sorted.
+  unique.sort((left, right) => Date.parse(left.at) - Date.parse(right.at)
+    || Number(left.signal === powerSignal) - Number(right.signal === powerSignal));
+
+  const legs = [];
+  const energyEvents = [];
+  const observationGaps = [];
+  let currentLeg = null;
+  let lastOdometer = null;
+  let lastLevel = null;
+  let stoppedLevel = null;
+  let powerState = null;
+  let previousObservation = null;
+
+  for (const event of unique) {
+    if (currentLeg && samplingSec !== undefined && previousObservation) {
+      const durationSec = (Date.parse(event.at) - Date.parse(previousObservation.at)) / 1000;
+      if (durationSec > samplingSec) {
+        observationGaps.push({ from: previousObservation.at, to: event.at, durationSec });
+        currentLeg.gapSeconds += durationSec;
+      }
+    }
+    previousObservation = event;
+
+    if (event.signal === 'ODOMETER_KM' && typeof event.value === 'number' && Number.isFinite(event.value) && event.value >= 0) {
+      lastOdometer = event.value;
+      if (currentLeg && currentLeg.startOdometer === null) currentLeg.startOdometer = lastOdometer;
+    }
+    if (event.signal === levelSignal && typeof event.value === 'number' && Number.isFinite(event.value) && event.value >= 0 && event.value <= 100) {
+      lastLevel = event.value;
+      if (powerState === false && stoppedLevel === null) stoppedLevel = lastLevel;
+    }
+    if (event.signal !== powerSignal) continue;
+    const isOn = isEv ? event.value === true : event.value === 'ON';
+    const isOff = isEv ? event.value === false : event.value === 'OFF';
+    // ACC, parking, and stop/start data are not silently treated as power OFF.
+    if (!isOn && !isOff) continue;
+    if (powerState === isOn) continue;
+    powerState = isOn;
+
+    if (isOn) {
+      currentLeg = { startedAt: event.at, startOdometer: lastOdometer, gapSeconds: 0 };
+      if (stoppedLevel !== null && lastLevel !== null && lastLevel - stoppedLevel >= minimumIncrease) {
+        const fields = {
+          levelBeforePercent: mockField(stoppedLevel, 'OBSERVED'),
+          levelAfterPercent: mockField(lastLevel, 'OBSERVED'),
+          ...(isEv
+            ? { batteryAddedKwh: unknownMockField(), billedKwh: unknownMockField() }
+            : { quantityLiters: unknownMockField() }),
+          amountKrw: unknownMockField(),
+        };
+        energyEvents.push({
+          id: `${isEv ? 'charge' : 'fuel'}-${energyEvents.length + 1}`,
+          kind: isEv ? 'CHARGE' : 'REFUEL',
+          detectedAt: event.at,
+          occurredAt: null,
+          odometerKm: lastOdometer,
+          recordStatus: 'DETECTED_UNCONFIRMED',
+          fields,
+        });
+      }
+      stoppedLevel = null;
+    } else {
+      if (currentLeg && currentLeg.startOdometer !== null && lastOdometer !== null) {
+        legs.push({
+          id: `leg-${legs.length + 1}`,
+          startedAt: currentLeg.startedAt,
+          endedAt: event.at,
+          startOdometerKm: currentLeg.startOdometer,
+          endOdometerKm: lastOdometer,
+          activeDurationSec: Math.max(0, Math.round((Date.parse(event.at) - Date.parse(currentLeg.startedAt)) / 1000) - currentLeg.gapSeconds),
+          distanceKm: Math.max(0, lastOdometer - currentLeg.startOdometer),
+        });
+      }
+      currentLeg = null;
+      stoppedLevel = lastLevel;
+    }
+  }
+
+  const journeys = legs.length ? [{
+    id: 'journey-1', legIds: legs.map((leg) => leg.id), groupingBasis: 'MOCK_SCENARIO',
+    activeDurationSec: legs.reduce((sum, leg) => sum + leg.activeDurationSec, 0),
+    distanceKm: legs.reduce((sum, leg) => sum + leg.distanceKm, 0),
+  }] : [];
+  return {
+    schemaVersion: '0.2', environment: 'MOCK', vehicleId, legs, journeys, energyEvents,
+    ...(samplingSec !== undefined ? { observationGaps } : {}),
+  };
+}
+
+
+// src/core/RecordEngine.js
+
+/** B01 output contract, with B04's explicitly mock-only test assumptions. */
+class RecordEngine {
+  static process(events, vehicleId = 'demo-ice-01', options = {}) {
+    return processMockRecords(events, vehicleId, options);
+  }
+}
+
+
+// src/core/RecordStore.js
+/**
+ * RecordStore (ES Module)
+ * F03 핵심 저장소: 엔진 산출물 관리, 사용자 정정(UserCorrection) 기록 및 원본 불변성 보장
+ */
+class RecordStore {
+  constructor(initialData) {
+    this.currentData = JSON.parse(JSON.stringify(initialData));
+    this.corrections = [];
+    this.listeners = [];
+    this.correctionCounter = 1;
+  }
+
+  subscribe(listener) {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
+  notify() {
+    this.listeners.forEach((l) => l(this));
+  }
+
+  updateEngineOutput(output) {
+    const clonedOutput = JSON.parse(JSON.stringify(output));
+
+    this.corrections.forEach((c) => {
+      const event = clonedOutput.energyEvents.find((e) => e.id === c.targetEventId);
+      if (event && event.fields[c.field]) {
+        event.fields[c.field] = { ...c.newField };
+      }
+    });
+
+    this.currentData = clonedOutput;
+    this.notify();
+  }
+
+  updateEnergyField(
+    targetEventId,
+    field,
+    value,
+    editedAt = '2026-11-15T08:50:00+09:00'
+  ) {
+    const targetEvent = this.currentData.energyEvents.find((e) => e.id === targetEventId);
+    if (!targetEvent || !Object.hasOwn(targetEvent.fields, field)) return null;
+
+    const previousField = {
+      ...targetEvent.fields[field],
+    };
+
+    const newField = {
+      value,
+      provenance: 'USER_INPUT',
+    };
+
+    const correction = {
+      correctionId: `correction-${this.correctionCounter++}`,
+      targetEventId,
+      field,
+      previousField,
+      newField,
+      editedAt,
+    };
+
+    this.corrections.push(correction);
+    targetEvent.fields[field] = newField;
+
+    this.notify();
+    return correction;
+  }
+
+  reset(initialData) {
+    this.currentData = JSON.parse(JSON.stringify(initialData));
+    this.corrections = [];
+    this.correctionCounter = 1;
+    this.notify();
+  }
+
+  getData() {
+    return this.currentData;
+  }
+
+  getCorrections() {
+    return [...this.corrections];
+  }
+
+  getEnergyEvent(id) {
+    return this.currentData.energyEvents.find((e) => e.id === id);
+  }
+}
+
+
+// src/mock/teamFixture.js
+// Generated from the pinned team B04 F01 source by npm run build.
+const TEAM_ICE_FIXTURE_V02 = {
+  "schemaVersion": "0.2",
+  "environment": "MOCK",
+  "vehicleId": "demo-ice-01",
+  "powertrain": "ICE",
+  "events": [
+    {
+      "eventId": "e01",
+      "at": "2026-11-15T08:00:00+09:00",
+      "signal": "IGNITION",
+      "value": "ON"
+    },
+    {
+      "eventId": "e02",
+      "at": "2026-11-15T08:00:00+09:00",
+      "signal": "ODOMETER_KM",
+      "value": 12340
+    },
+    {
+      "eventId": "e03",
+      "at": "2026-11-15T08:00:00+09:00",
+      "signal": "FUEL_PERCENT",
+      "value": 30
+    },
+    {
+      "eventId": "e04",
+      "at": "2026-11-15T08:15:00+09:00",
+      "signal": "ODOMETER_KM",
+      "value": 12345
+    },
+    {
+      "eventId": "e05",
+      "at": "2026-11-15T08:15:00+09:00",
+      "signal": "FUEL_PERCENT",
+      "value": 30
+    },
+    {
+      "eventId": "e06",
+      "at": "2026-11-15T08:15:00+09:00",
+      "signal": "IGNITION",
+      "value": "OFF"
+    },
+    {
+      "eventId": "e07",
+      "at": "2026-11-15T08:25:00+09:00",
+      "signal": "FUEL_PERCENT",
+      "value": 75
+    },
+    {
+      "eventId": "e08",
+      "at": "2026-11-15T08:25:00+09:00",
+      "signal": "IGNITION",
+      "value": "ON"
+    },
+    {
+      "eventId": "e09",
+      "at": "2026-11-15T08:25:00+09:00",
+      "signal": "ODOMETER_KM",
+      "value": 12345
+    },
+    {
+      "eventId": "e10",
+      "at": "2026-11-15T08:45:00+09:00",
+      "signal": "ODOMETER_KM",
+      "value": 12352
+    },
+    {
+      "eventId": "e11",
+      "at": "2026-11-15T08:45:00+09:00",
+      "signal": "IGNITION",
+      "value": "OFF"
+    }
+  ]
+};
+
+const TEAM_FIXTURE_SOURCE = {
+  "fixtureId": "F01",
+  "repository": "https://github.com/Mybread2/pleos-care-log",
+  "commit": "dd7d0e0c69648b086c52df0c82bdfcb539ae17be",
+  "file": "mock-fixtures/fixtures/F01_ice_basic_refuel.json"
+};
+
+
+// src/ui/DemoSession.js
+
+
+
+
+// UI coordination only. Sensor processing and correction contracts stay in F03.
+class DemoSession {
+  constructor(onChange = () => {}, fixture = TEAM_ICE_FIXTURE_V02) {
+    this.dataSource = new MockVehicleDataSource(fixture);
+    this.source = fixture === TEAM_ICE_FIXTURE_V02 ? TEAM_FIXTURE_SOURCE : null;
+    this.engineOptions = { powertrain: fixture.powertrain, samplingSec: fixture.mockFeed?.samplingSec };
+    this.store = new RecordStore(RecordEngine.process([]));
+    this.onChange = onChange;
+    this.latestEvent = null;
+    this.store.subscribe(() => this.onChange(this.snapshot()));
+    this.dataSource.subscribe((event, events) => {
+      this.latestEvent = event;
+      this.store.updateEngineOutput(RecordEngine.process(events, fixture.vehicleId, this.engineOptions));
+    });
+  }
+
+  snapshot() {
+    const events = this.dataSource.getPublishedEvents();
+    const latest = (signal) => events.findLast((event) => event.signal === signal);
+    const ignition = latest('IGNITION')?.value ?? null;
+    return {
+      data: this.store.getData(), corrections: this.store.getCorrections(), events,
+      source: this.source,
+      latestEvent: this.latestEvent, ignition,
+      // No speed/gear signal exists. OFF is the only allowed input mode.
+      inputAllowed: ignition === 'OFF',
+      step: this.dataSource.getCurrentStep(), total: this.dataSource.getTotalSteps(),
+    };
+  }
+
+  next() { return this.dataSource.next(); }
+  runAll() { return this.dataSource.emitAll(); }
+  reset() {
+    this.dataSource.reset();
+    this.store.reset(RecordEngine.process([]));
+  }
+
+  correctAmount(input) {
+    const state = this.snapshot();
+    if (!state.data.energyEvents.length) return { ok: false, message: '아직 감지된 주유 기록이 없습니다. 전체 시연을 실행해 주세요.' };
+    if (!state.inputAllowed) return { ok: false, message: '시동 OFF 후 결제금액을 입력할 수 있습니다.' };
+    const text = String(input).trim();
+    if (!/^\d{1,7}$/.test(text) || Number(text) <= 0) return { ok: false, message: '1원부터 9,999,999원까지 정수로 입력해 주세요.' };
+    const amount = Number(text);
+    const event = state.data.energyEvents[0];
+    if (event.fields.amountKrw.value === amount) return { ok: false, message: '이미 같은 금액으로 저장되어 있습니다.' };
+    const correction = this.store.updateEnergyField(event.id, 'amountKrw', amount, new Date().toISOString());
+    return { ok: true, amount, correction, message: `${amount.toLocaleString('ko-KR')}원이 사용자 입력으로 저장되었습니다.` };
+  }
+}
+
+
+// src/ui/visuals.js
+const paths = {
+  logo: '<path d="m4 21 8-18 8 18M7 15h10M12 5v4"/>',
+  home: '<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>',
+  route: '<circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><path d="M8 5h7a4 4 0 0 1 0 8H9a4 4 0 0 0 0 8h5"/>',
+  fuel: '<path d="M4 21V4h10v17M2 21h14M4 10h10M17 5l3 3v9a2 2 0 0 1-4 0v-4h-2M18 6v4h2"/>',
+  edit: '<path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7M9 15l1-4L19 2l3 3-9 9-4 1Z"/>',
+  shield: '<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/>',
+  arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
+  play: '<path d="m8 5 11 7-11 7V5Z"/>',
+  forward: '<path d="m3 5 8 7-8 7V5Zm10 0 8 7-8 7V5Z"/>',
+  reset: '<path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/>',
+  check: '<path d="m5 12 4 4L20 5"/>',
+  lock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
+  car: '<path d="m4 9 2-5h12l2 5M3 10v9h3v-3h12v3h3v-9H3ZM6 12h2m8 0h2"/>',
+  backspace: '<path d="m3 12 6-8h12v16H9l-6-8Zm9-3 6 6m0-6-6 6"/>',
+  pause: '<path d="M9 5v14M15 5v14"/>',
+  office: '<path d="M5 21V3h14v18M3 21h18M9 7h1m4 0h1M9 11h1m4 0h1M10 21v-5h4v5"/>',
+};
+
+const icon = (name, className = '') => `<svg class="icon ${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.route}</svg>`;
+
+// Schematic only: the fixture has no GPS or real place coordinates.
+function routeMap({ preview = false, completed = 0, started = false } = {}) {
+  const first = preview || completed >= 1;
+  const second = preview || completed >= 2;
+  const pattern = preview ? 'intro-blocks' : 'trip-blocks';
+  return `<svg class="route-map" viewBox="0 0 800 410" role="img" aria-label="모의 경로: 집에서 주유소를 거쳐 회사. ${preview ? '서비스 소개용 경로' : `완료된 구간 ${completed}개`}">
+    <defs><pattern id="${pattern}" width="118" height="92" patternTransform="rotate(-24)" patternUnits="userSpaceOnUse"><rect x="12" y="10" width="88" height="64" rx="4" fill="#141a22"/><path d="M0 85h118M109 0v92" stroke="#242d38" stroke-width="2"/></pattern></defs>
+    <rect width="800" height="410" fill="url(#${pattern})"/>
+    <path d="M-30 315C150 220 265 370 440 314S660 140 840 195" fill="none" stroke="#172738" stroke-width="52"/>
+    <path d="M-30 315C150 220 265 370 440 314S660 140 840 195" fill="none" stroke="#1b3044" stroke-width="1"/>
+    <g fill="#1b2928"><path d="m16 28 127 15-16 87-99-25Z"/><path d="m586 318 90-42 79 55-55 69-111-17Z"/><path d="m383 25 65 5 2 52-64 27-24-37Z"/></g>
+    <g fill="none" stroke="#303b48" stroke-width="11" stroke-linejoin="round"><path d="M-20 162 210 162 335 90 820 90"/><path d="m90 440 90-163L340 190l127-22 85-118 90-85"/><path d="m-20 380 238-95 170-65 210 70 202-6"/><path d="m470 440 9-111 110-142L760-30"/></g>
+    <g fill="none" stroke="#19212c" stroke-width="7" stroke-linejoin="round"><path d="M-20 162 210 162 335 90 820 90"/><path d="m90 440 90-163L340 190l127-22 85-118 90-85"/><path d="m-20 380 238-95 170-65 210 70 202-6"/><path d="m470 440 9-111 110-142L760-30"/></g>
+    <g fill="#647180" font-family="Segoe UI, Malgun Gothic, sans-serif" font-size="12" letter-spacing="2"><text x="46" y="230">주거 지역</text><text x="355" y="365" fill="#607f98">RIVER</text><text x="624" y="150">업무 지구</text></g>
+    <path d="M170 274 322 190 465 168 521 90H640" fill="none" stroke="#34414f" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    ${first ? '<path d="M170 274 322 190 418 175" fill="none" stroke="#8bb9f2" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' : ''}
+    ${second ? '<path d="m418 175 47-7 56-78h119" fill="none" stroke="#8bb9f2" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' : ''}
+    <circle cx="170" cy="274" r="8" fill="${started || preview ? '#accdf8' : '#697584'}" stroke="#101720" stroke-width="4"/>
+    <circle cx="418" cy="175" r="9" fill="${first ? '#accdf8' : '#697584'}" stroke="#101720" stroke-width="4"/>
+    <circle cx="640" cy="90" r="10" fill="${second ? '#accdf8' : '#697584'}" stroke="#101720" stroke-width="4"/>
+    <g font-family="Segoe UI, Malgun Gothic, sans-serif" text-anchor="middle"><rect x="128" y="294" width="84" height="52" rx="7" fill="#0a0f15" stroke="#2e3947"/><text x="170" y="316" fill="#f1f4f8" font-size="17">집</text><text x="170" y="334" fill="#9aa7b5" font-size="12">${started || preview ? '08:00 출발' : '출발 대기'}</text>
+    <rect x="368" y="98" width="100" height="52" rx="7" fill="#0a0f15" stroke="#2e3947"/><text x="418" y="120" fill="#f1f4f8" font-size="17">주유소</text><text x="418" y="138" fill="#9aa7b5" font-size="12">${first ? '08:15 · 경유' : '경유지'}</text>
+    <rect x="595" y="112" width="90" height="52" rx="7" fill="#0a0f15" stroke="#2e3947"/><text x="640" y="134" fill="#f1f4f8" font-size="17">회사</text><text x="640" y="152" fill="#9aa7b5" font-size="12">${second ? '08:45 도착' : '도착 대기'}</text></g>
+    <g transform="translate(739 337)"><circle r="21" fill="#0d141d" stroke="#394451"/><path d="m0-13 7 17-7-3-7 3Z" fill="#a8b7c8"/><text y="38" text-anchor="middle" fill="#788696" font-family="sans-serif" font-size="11">N</text></g>
+  </svg>`;
+}
+
+
+// src/app.js
+
+
+const $ = (id) => document.getElementById(id);
+const number = (value) => value.toLocaleString('ko-KR');
+const time = (value) => value.slice(11, 16);
+const fieldValue = (field) => field.value === null ? '미확인' : `${number(field.value)}원`;
+const provenance = (field) => `<span class="provenance ${field.provenance === 'USER_INPUT' ? 'user' : ''}">${field.provenance}${field.value === null ? ' · null' : ''}</span>`;
+
+class AutoLogApp {
+  constructor() {
+    this.view = 'welcome';
+    this.replaceDraft = true;
+    this.session = new DemoSession((state) => this.render(state));
+    $('welcome-map').innerHTML = routeMap({ preview: true });
+    this.updatePresets();
+    this.bindEvents();
+    this.render(this.session.snapshot());
+    this.renderIcons();
+  }
+
+  renderIcons() {
+    document.querySelectorAll('[data-icon]').forEach((element) => {
+      if (!element.firstElementChild) element.innerHTML = icon(element.dataset.icon);
+    });
+  }
+
+  bindEvents() {
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('button');
+      if (!button || button.disabled || button.closest('fieldset:disabled')) return;
+      if (button.dataset.view) this.switchView(button.dataset.view);
+      if (button.dataset.action) this.handleAction(button.dataset.action);
+      if (button.dataset.amount) this.setDraft(button.dataset.amount);
+      if (button.dataset.key) this.handleKey(button.dataset.key);
+    });
+    document.querySelector('.brand').addEventListener('click', (event) => {
+      event.preventDefault();
+      this.switchView('welcome');
+    });
+    $('correction-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const result = this.session.correctAmount($('input-amount-krw').value.replaceAll(',', ''));
+      $('correction-message').textContent = result.message;
+      $('correction-message').className = `form-message ${result.ok ? 'success' : 'error'}`;
+      if (result.ok) { this.replaceDraft = true; this.showToast(result.message); }
+    });
+    $('input-amount-krw').addEventListener('focus', () => { $('input-amount-krw').select(); });
+    $('input-amount-krw').addEventListener('input', () => {
+      const input = $('input-amount-krw');
+      if (/^[\d,]*$/.test(input.value)) {
+        const digits = input.value.replaceAll(',', '');
+        input.value = digits ? number(Number(digits)) : '';
+      }
+      this.replaceDraft = false;
+      this.updatePresets();
+      $('correction-message').textContent = '확인 후 정정 적용을 눌러 주세요.';
+      $('correction-message').className = 'form-message';
+    });
+  }
+
+  switchView(view) {
+    if (!['welcome', 'journey', 'refuel', 'correction'].includes(view)) return;
+    this.view = view;
+    document.querySelectorAll('.screen').forEach((screen) => {
+      screen.hidden = screen.id !== view;
+      screen.classList.toggle('active', screen.id === view);
+    });
+    document.querySelectorAll('.rail-button').forEach((button) => {
+      const active = button.dataset.view === view;
+      button.classList.toggle('active', active);
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    $('main-content').scrollTop = 0;
+    $('main-content').focus({ preventScroll: true });
+  }
+
+  handleAction(action) {
+    if (action === 'start' || action === 'all') {
+      this.session.runAll();
+      this.switchView('journey');
+    } else if (action === 'next') {
+      this.session.next();
+      if (this.view === 'welcome') this.switchView('journey');
+    } else if (action === 'reset') {
+      this.session.reset();
+      this.setDraft('65000');
+      $('correction-message').textContent = '금액 선택 후 한 번만 적용하면 끝.';
+      $('correction-message').className = 'form-message';
+      clearTimeout(this.toastTimer);
+      $('toast').hidden = true;
+      this.switchView('welcome');
+    }
+  }
+
+  setDraft(value) {
+    if (!this.session.snapshot().inputAllowed && value !== '65000') return;
+    $('input-amount-krw').value = value ? number(Number(value)) : '';
+    this.replaceDraft = true;
+    this.updatePresets();
+    $('correction-message').textContent = '확인 후 정정 적용을 눌러 주세요.';
+    $('correction-message').className = 'form-message';
+  }
+
+  updatePresets() {
+    const value = $('input-amount-krw').value.replaceAll(',', '');
+    document.querySelectorAll('[data-amount]').forEach((button) => {
+      const selected = button.dataset.amount === value;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+  }
+
+  handleKey(key) {
+    if (!this.session.snapshot().inputAllowed) return;
+    let digits = $('input-amount-krw').value.replaceAll(',', '');
+    if (!/^\d*$/.test(digits)) digits = '';
+    if (key === 'clear') digits = '';
+    else if (key === 'backspace') digits = digits.slice(0, -1);
+    else digits = (this.replaceDraft ? key : digits + key).slice(0, 7);
+    this.setDraft(digits);
+    this.replaceDraft = false;
+  }
+
+  showToast(message) {
+    clearTimeout(this.toastTimer);
+    $('toast').textContent = `✓ ${message}`;
+    $('toast').hidden = false;
+    this.toastTimer = setTimeout(() => { $('toast').hidden = true; }, 3500);
+  }
+
+  render(state) {
+    this.renderStatus(state);
+    this.renderJourney(state);
+    this.renderRefuel(state);
+    this.renderCorrection(state);
+    this.renderIcons();
+  }
+
+  renderStatus(state) {
+    const { step, total, latestEvent, ignition } = state;
+    $('vehicle-time').textContent = latestEvent ? time(latestEvent.at) : '08:00';
+    $('vehicle-state').innerHTML = `<i></i>${ignition === 'ON' ? '시동 ON · 입력 잠금' : ignition === 'OFF' ? '시동 OFF · 입력 가능' : '차량 신호 대기'}`;
+    $('vehicle-state').classList.toggle('locked', ignition === 'ON');
+    $('step-counter').textContent = `Step ${step} / ${total}`;
+    $('last-signal-ticker').textContent = latestEvent ? `[${latestEvent.eventId}] ${latestEvent.signal} = ${latestEvent.value}` : '시연을 시작해 주세요';
+    $('event-progress').innerHTML = Array.from({ length: total }, (_, index) => `<i class="${index < step ? 'done' : ''}"></i>`).join('');
+    $('event-progress').setAttribute('aria-valuenow', String(step));
+    $('btn-next').disabled = step === total;
+    $('btn-run-all').disabled = step === total;
+    $('refuel-dot').hidden = !state.data.energyEvents.length || state.corrections.length > 0;
+  }
+
+  renderJourney(state) {
+    const { data, step, total, ignition, events } = state;
+    const journey = data.journeys[0];
+    $('total-distance').textContent = journey ? journey.distanceKm.toFixed(1) : '—';
+    $('total-duration').textContent = journey ? String(Math.round(journey.activeDurationSec / 60)) : '—';
+    $('journey-status').innerHTML = `<span class="live-dot"></span>${step === total ? '오늘의 여정이 기록되었어요' : step ? '차량 신호를 기록하고 있어요' : '모의 주행을 기다리고 있어요'}`;
+    $('leg-count').textContent = `${data.legs.length}개 구간`;
+    $('journey-basis').textContent = journey ? journey.groupingBasis : '기록 대기';
+    $('journey-map').innerHTML = routeMap({ completed: data.legs.length, started: step > 0 });
+    const stop = events.find((event) => event.signal === 'IGNITION' && event.value === 'OFF');
+    const restart = stop && events.find((event) => event.signal === 'IGNITION' && event.value === 'ON' && event.at > stop.at);
+    const pauseMinutes = restart ? Math.round((Date.parse(restart.at) - Date.parse(stop.at)) / 60000) : null;
+    $('journey-metric-note').textContent = pauseMinutes !== null ? `정차 ${pauseMinutes}분 제외` : '완료된 구간 기준';
+    let timeline = '';
+    data.legs.forEach((leg, index) => {
+      timeline += `<article class="leg"><div class="leg-marker">${icon(index === 0 ? 'home' : 'fuel')}</div><div class="leg-info"><span class="leg-caption">구간 ${index + 1}</span><div class="leg-title"><h3>${index === 0 ? '집 <span>→</span> 주유소' : '주유소 <span>→</span> 회사'}</h3><strong>${leg.distanceKm}<small> km</small></strong></div><p>${time(leg.startedAt)} — ${time(leg.endedAt)} <b>· ${Math.round(leg.activeDurationSec / 60)}분 운행</b></p><p class="odometer">${number(leg.startOdometerKm)} → ${number(leg.endOdometerKm)} km</p></div></article>`;
+      if (index === 0 && stop) {
+        timeline += `<div class="pause-row">${icon('pause')}<div><strong>${pauseMinutes !== null ? `정차 ${pauseMinutes}분` : '정차 중'}</strong><span>${time(stop.at)}${restart ? ` — ${time(restart.at)}` : ' 이후'} · 시동 OFF · 운행시간 제외</span></div></div>`;
+      }
+    });
+    if (!data.legs.length) timeline = `<div class="timeline-empty">${icon('route')}<strong>${ignition === 'ON' ? '첫 구간을 기록하고 있어요' : '아직 완료된 구간이 없어요'}</strong><p>시동 OFF 신호가 도착하면<br>주행거리와 운행시간이 집계됩니다.</p></div>`;
+    else if (ignition === 'ON') timeline += '<p class="recording-line"><span class="live-dot"></span>다음 주행 구간 기록 중</p>';
+    $('legs-timeline').innerHTML = timeline;
+    $('journey-refuel').innerHTML = data.energyEvents.length ? `${icon('fuel')}<div><strong>주유가 감지되었어요</strong><span>${data.energyEvents[0].fields.amountKrw.value === null ? '결제금액을 확인해 주세요' : `${fieldValue(data.energyEvents[0].fields.amountKrw)} · 사용자 입력`}</span></div><span class="count-pill">1</span>` : `${icon('shield')}<div><strong>별도의 입력 없이</strong><span>차량 신호에서 자동으로 기록합니다</span></div>`;
+  }
+
+  renderRefuel(state) {
+    const refuel = state.data.energyEvents[0];
+    $('refuel-status').innerHTML = refuel ? '<span class="amber-dot"></span>감지됨 · 확인 대기' : '감지된 주유 없음';
+    if (!refuel) {
+      $('refuel-content').innerHTML = `<div class="empty-state">${icon('fuel')}<h2>아직 감지된 주유가 없어요</h2><p>연료가 증가한 뒤 시동이 켜지면 주유 기록이 생성됩니다.<br>전체 시연으로 연료 30% → 75% 변화를 확인해 보세요.</p><button class="button primary" data-action="all">전체 시연 실행 ${icon('forward')}</button></div>`;
+      return;
+    }
+    const fields = refuel.fields;
+    const before = fields.levelBeforePercent.value;
+    const after = fields.levelAfterPercent.value;
+    $('refuel-content').innerHTML = `<div class="refuel-layout"><div class="fuel-panel"><div class="fuel-heading"><span class="fuel-icon">${icon('fuel')}</span><div><h2>연료의 변화를 기록했어요</h2><p>${time(refuel.detectedAt)} 감지 · 누적 ${number(refuel.odometerKm)} km</p></div><span class="subtle-tag">OBSERVED</span></div><div class="fuel-comparison"><div><span>주유 전</span><p>${before}<small>%</small></p></div>${icon('arrow')}<div><span>주유 후</span><p>${after}<small>%</small></p></div></div><div class="fuel-gauge"><div style="width:${before}%"></div><div style="width:${after - before}%"></div></div><div class="gauge-scale"><span>0</span><span>연료 잔량</span><span>100%</span></div><div class="fuel-increase"><span>관측된 연료 증가</span><strong>+${after - before}<small> %p</small></strong></div><p class="sensor-note">${icon('shield')}차량 센서가 관측한 연료 잔량을 그대로 보존합니다.</p></div><div class="fuel-record-panel"><div class="section-heading"><h2>확인이 필요한 정보</h2><span class="subtle-tag amber">확인 대기</span></div><div class="unknown-field"><div><span>주유량</span>${provenance(fields.quantityLiters)}</div><strong>${fields.quantityLiters.value === null ? '미확인' : `${number(fields.quantityLiters.value)} L`}</strong></div><div class="unknown-field"><div><span>결제금액</span>${provenance(fields.amountKrw)}</div><strong class="${fields.amountKrw.value !== null ? 'blue' : ''}">${fieldValue(fields.amountKrw)}</strong></div><p class="unknown-explanation">차량 센서로 알 수 없는 주유량과 결제금액은<br><strong>미확인 상태로 보존</strong>합니다.</p><div class="record-status"><span>기록 상태</span><code>${refuel.recordStatus}</code></div><button class="button primary full" data-view="correction" ${!state.inputAllowed ? 'disabled' : ''}>${state.inputAllowed ? '금액 정정하러 가기' : '시동 OFF 후 정정 가능'} ${icon(state.inputAllowed ? 'arrow' : 'lock')}</button><p class="safety-note">${icon('lock')}금액 입력은 시동 OFF 상태에서만 가능합니다.</p></div></div>`;
+  }
+
+  renderCorrection(state) {
+    const { data, corrections, inputAllowed, ignition } = state;
+    const refuel = data.energyEvents[0];
+    const fields = refuel?.fields;
+    $('amount-controls').disabled = !inputAllowed || !refuel;
+    $('input-lock').hidden = !!(inputAllowed && refuel);
+    $('input-lock').querySelector('strong').textContent = ignition === 'ON' ? '시동 OFF 후 입력할 수 있어요' : '주유 기록을 먼저 감지해 주세요';
+    $('input-lock').querySelector('p').innerHTML = ignition === 'ON' ? '안전을 위해 시동 ON 동안<br>금액 입력을 잠급니다.' : '하단의 전체 실행으로<br>모의 주행을 완료해 주세요.';
+    $('current-record').innerHTML = `<div class="section-heading"><h2>현재 저장된 기록</h2><span class="subtle-tag">${refuel ? 'REFUEL · fuel-1' : '기록 대기'}</span></div><div class="saved-amount"><span>결제금액</span><div><strong class="${fields?.amountKrw.value != null ? 'blue' : ''}">${fields ? fieldValue(fields.amountKrw) : '—'}</strong>${fields ? provenance(fields.amountKrw) : ''}</div></div><div class="saved-details"><span>주유량 <b>${fields ? (fields.quantityLiters.value === null ? '미확인 · UNKNOWN' : `${number(fields.quantityLiters.value)} L`) : '—'}</b></span><span>감지 시각 <b>${refuel ? `${time(refuel.detectedAt)} · 모의 시각` : '—'}</b></span></div>`;
+    $('correction-count').textContent = `${corrections.length}건`;
+    $('corrections-table-body').innerHTML = corrections.length ? [...corrections].reverse().map((correction) => {
+      const editedTime = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(correction.editedAt));
+      return `<tr><td>${editedTime}<small>${correction.correctionId}</small></td><td>결제금액<small>amountKrw</small></td><td>${fieldValue(correction.previousField)}${provenance(correction.previousField)}</td><td class="blue">${fieldValue(correction.newField)}${provenance(correction.newField)}</td></tr>`;
+    }).join('') : '<tr><td colspan="4" class="audit-empty">아직 정정 이력이 없습니다.<br><span>금액을 적용하면 변경 전후의 값이 여기에 남습니다.</span></td></tr>';
+    const rawFuel = state.events.filter((event) => event.signal === 'FUEL_PERCENT');
+    const original = rawFuel.length ? rawFuel.map((event) => `<span>${event.eventId} <b>${event.value}%</b></span>`).join('') : '<span>센서 신호 수집 대기</span>';
+    $('raw-preservation').innerHTML = `${icon('shield')}<div><strong>원본 Mock 센서 데이터 · 변경 없음</strong><div class="raw-values">${original}</div></div><span class="subtle-tag">OBSERVED</span>`;
+  }
+}
+
+new AutoLogApp();
+
+})();
+</script>
+</body>
+</html>
