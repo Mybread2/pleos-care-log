@@ -36,6 +36,12 @@ Pleos Connect(AAOS) 차량용 자동 차계부. 기획: PRD v2.7
 | `ui/NumberPadDialog` | 수량·금액 입력용 큰 숫자 패드 (시스템 키보드 대신) | 5.2 |
 | `ui/DebugActivity` | 시연·검증용 화면. 설정 → 개발자 화면에서 연다 | - |
 
+## B05 · Mock 기록 생성
+
+`RecordEngine.process(MockInput)`은 B01 v0.2 이벤트에서 Leg, Journey, 주유·충전 후보를 생성합니다. 입력과 기대 출력은 [B04 Fixture](mock-fixtures/fixtures)를 따릅니다. 시연용 F01은 Leg 2건, Journey 1건, 활성 운행 35분, 12km, 주유 후보 1건을 반환합니다.
+
+F03 어댑터는 결과의 `records`를 읽고 `correctAmount`가 반환한 기록을 사용합니다. 원본 이벤트와 사용자 정정 이력은 따로 보존합니다. F04는 `mockFeed.samplingSec`를 전달하면 미관측 600초를 활성 운행에서 제외하고 공백을 별도 반환합니다.
+
 ## 빌드
 
 - JDK 17+, Android SDK (compileSdk 35)
