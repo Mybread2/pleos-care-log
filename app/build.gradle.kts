@@ -50,6 +50,7 @@ android {
     buildFeatures {
         compose = true
     }
+    sourceSets["test"].resources.srcDir(rootProject.file("mock-fixtures/fixtures"))
 }
 
 dependencies {
@@ -74,6 +75,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("com.google.code.gson:gson:2.10.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 }
 
