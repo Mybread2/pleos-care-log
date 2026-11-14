@@ -1,0 +1,47 @@
+{
+  "fixtureId": "F06",
+  "title": "EV 예외 — READY false 5분 짧은 정차 뒤 SOC +1%p (충전 후보를 만들지 않음)",
+  "schemaVersion": "0.2",
+  "environment": "MOCK",
+  "vehicleId": "demo-ev-01",
+  "powertrain": "EV",
+  "units": {
+    "at": "ISO 8601 +09:00, Mock 신호의 관측 시각",
+    "ODOMETER_KM": "km (누적)",
+    "SOC_PERCENT": "% (0~100)",
+    "READY": "true / false"
+  },
+  "covers": ["EV_READY", "DISTANCE", "SOC_INCREASE", "SHORT_OFF_STOP"],
+  "notes": [
+    "모든 값은 가상 Mock 데이터. 실제 차량에서 관측한 이벤트가 아님.",
+    "07:45~07:50 READY=false 5분은 활성 운행시간에서 제외.",
+    "정차 전후 SOC 67→68(+1%p)은 표시 반올림 흔들림 가정 → 충전 후보 없음. 충전 임계값은 미확정이지만 2%p 이상이면 이 결과는 같음."
+  ],
+  "events": [
+    { "eventId": "s01", "at": "2026-11-15T07:30:00+09:00", "signal": "READY", "value": true },
+    { "eventId": "s02", "at": "2026-11-15T07:30:00+09:00", "signal": "ODOMETER_KM", "value": 30100 },
+    { "eventId": "s03", "at": "2026-11-15T07:30:00+09:00", "signal": "SOC_PERCENT", "value": 70 },
+    { "eventId": "s04", "at": "2026-11-15T07:45:00+09:00", "signal": "ODOMETER_KM", "value": 30108 },
+    { "eventId": "s05", "at": "2026-11-15T07:45:00+09:00", "signal": "SOC_PERCENT", "value": 67 },
+    { "eventId": "s06", "at": "2026-11-15T07:45:00+09:00", "signal": "READY", "value": false },
+    { "eventId": "s07", "at": "2026-11-15T07:50:00+09:00", "signal": "READY", "value": true },
+    { "eventId": "s08", "at": "2026-11-15T07:50:00+09:00", "signal": "ODOMETER_KM", "value": 30108 },
+    { "eventId": "s09", "at": "2026-11-15T07:50:00+09:00", "signal": "SOC_PERCENT", "value": 68 },
+    { "eventId": "s10", "at": "2026-11-15T08:10:00+09:00", "signal": "ODOMETER_KM", "value": 30118 },
+    { "eventId": "s11", "at": "2026-11-15T08:10:00+09:00", "signal": "SOC_PERCENT", "value": 65 },
+    { "eventId": "s12", "at": "2026-11-15T08:10:00+09:00", "signal": "READY", "value": false }
+  ],
+  "expected": {
+    "schemaVersion": "0.2",
+    "environment": "MOCK",
+    "vehicleId": "demo-ev-01",
+    "legs": [
+      { "id": "leg-1", "startedAt": "2026-11-15T07:30:00+09:00", "endedAt": "2026-11-15T07:45:00+09:00", "startOdometerKm": 30100, "endOdometerKm": 30108, "activeDurationSec": 900, "distanceKm": 8 },
+      { "id": "leg-2", "startedAt": "2026-11-15T07:50:00+09:00", "endedAt": "2026-11-15T08:10:00+09:00", "startOdometerKm": 30108, "endOdometerKm": 30118, "activeDurationSec": 1200, "distanceKm": 10 }
+    ],
+    "journeys": [
+      { "id": "journey-1", "legIds": ["leg-1", "leg-2"], "groupingBasis": "MOCK_SCENARIO", "activeDurationSec": 2100, "distanceKm": 18 }
+    ],
+    "energyEvents": []
+  }
+}

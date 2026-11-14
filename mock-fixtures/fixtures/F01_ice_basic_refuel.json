@@ -1,0 +1,62 @@
+{
+  "fixtureId": "F01",
+  "title": "ICE 기본 — 시동 ON/OFF · 거리 · 연료 증가(주유 후보) · 금액/L 미확인 · 10분 OFF 정차",
+  "schemaVersion": "0.2",
+  "environment": "MOCK",
+  "vehicleId": "demo-ice-01",
+  "powertrain": "ICE",
+  "units": {
+    "at": "ISO 8601 +09:00, Mock 신호의 관측 시각 (실제 주유 시각 아님)",
+    "ODOMETER_KM": "km (누적)",
+    "FUEL_PERCENT": "% (0~100)",
+    "IGNITION": "ON / OFF / ACC"
+  },
+  "covers": ["IGNITION_ON_OFF", "DISTANCE", "FUEL_INCREASE", "AMOUNT_UNKNOWN", "SHORT_OFF_STOP"],
+  "notes": [
+    "모든 값은 가상 Mock 데이터. 실제 차량에서 관측한 이벤트가 아님.",
+    "events는 B01 v0.2 §4, expected는 11/15 시연 시나리오 v0.2 §3과 동일.",
+    "08:15~08:25 Fuel 30→75는 시연용으로 유효한 주유 사건이라고 가정한 사례. 결과는 DETECTED_UNCONFIRMED(후보)이며 주유 확정이 아님.",
+    "08:15~08:25 시동 OFF 10분은 활성 운행시간에서 제외 (수신 공백이 아님)."
+  ],
+  "events": [
+    { "eventId": "e01", "at": "2026-11-15T08:00:00+09:00", "signal": "IGNITION", "value": "ON" },
+    { "eventId": "e02", "at": "2026-11-15T08:00:00+09:00", "signal": "ODOMETER_KM", "value": 12340 },
+    { "eventId": "e03", "at": "2026-11-15T08:00:00+09:00", "signal": "FUEL_PERCENT", "value": 30 },
+    { "eventId": "e04", "at": "2026-11-15T08:15:00+09:00", "signal": "ODOMETER_KM", "value": 12345 },
+    { "eventId": "e05", "at": "2026-11-15T08:15:00+09:00", "signal": "FUEL_PERCENT", "value": 30 },
+    { "eventId": "e06", "at": "2026-11-15T08:15:00+09:00", "signal": "IGNITION", "value": "OFF" },
+    { "eventId": "e07", "at": "2026-11-15T08:25:00+09:00", "signal": "FUEL_PERCENT", "value": 75 },
+    { "eventId": "e08", "at": "2026-11-15T08:25:00+09:00", "signal": "IGNITION", "value": "ON" },
+    { "eventId": "e09", "at": "2026-11-15T08:25:00+09:00", "signal": "ODOMETER_KM", "value": 12345 },
+    { "eventId": "e10", "at": "2026-11-15T08:45:00+09:00", "signal": "ODOMETER_KM", "value": 12352 },
+    { "eventId": "e11", "at": "2026-11-15T08:45:00+09:00", "signal": "IGNITION", "value": "OFF" }
+  ],
+  "expected": {
+    "schemaVersion": "0.2",
+    "environment": "MOCK",
+    "vehicleId": "demo-ice-01",
+    "legs": [
+      { "id": "leg-1", "startedAt": "2026-11-15T08:00:00+09:00", "endedAt": "2026-11-15T08:15:00+09:00", "startOdometerKm": 12340, "endOdometerKm": 12345, "activeDurationSec": 900, "distanceKm": 5 },
+      { "id": "leg-2", "startedAt": "2026-11-15T08:25:00+09:00", "endedAt": "2026-11-15T08:45:00+09:00", "startOdometerKm": 12345, "endOdometerKm": 12352, "activeDurationSec": 1200, "distanceKm": 7 }
+    ],
+    "journeys": [
+      { "id": "journey-1", "legIds": ["leg-1", "leg-2"], "groupingBasis": "MOCK_SCENARIO", "activeDurationSec": 2100, "distanceKm": 12 }
+    ],
+    "energyEvents": [
+      {
+        "id": "fuel-1",
+        "kind": "REFUEL",
+        "detectedAt": "2026-11-15T08:25:00+09:00",
+        "occurredAt": null,
+        "odometerKm": 12345,
+        "recordStatus": "DETECTED_UNCONFIRMED",
+        "fields": {
+          "levelBeforePercent": { "value": 30, "provenance": "OBSERVED" },
+          "levelAfterPercent": { "value": 75, "provenance": "OBSERVED" },
+          "quantityLiters": { "value": null, "provenance": "UNKNOWN" },
+          "amountKrw": { "value": null, "provenance": "UNKNOWN" }
+        }
+      }
+    ]
+  }
+}

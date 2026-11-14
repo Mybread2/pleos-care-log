@@ -1,0 +1,64 @@
+{
+  "fixtureId": "F02",
+  "title": "EV 기본 — READY true/false · 거리 · SOC 증가(충전 후보) · 충전 kWh/금액 미확인 · 30분 정차",
+  "schemaVersion": "0.2",
+  "environment": "MOCK",
+  "vehicleId": "demo-ev-01",
+  "powertrain": "EV",
+  "units": {
+    "at": "ISO 8601 +09:00, Mock 신호의 관측 시각 (실제 충전 시각 아님)",
+    "ODOMETER_KM": "km (누적)",
+    "SOC_PERCENT": "% (0~100)",
+    "READY": "true / false"
+  },
+  "covers": ["EV_READY", "DISTANCE", "SOC_INCREASE", "AMOUNT_UNKNOWN", "SHORT_OFF_STOP"],
+  "notes": [
+    "모든 값은 가상 Mock 데이터. 실제 차량에서 관측한 이벤트가 아님.",
+    "08:20~08:50 READY=false 중 SOC 36→80은 시연용으로 유효한 충전 사건이라고 가정한 사례. 결과는 DETECTED_UNCONFIRMED(후보).",
+    "B01 §5: 배터리 증가 에너지(batteryAddedKwh)와 충전기 과금 에너지(billedKwh)는 별개 항목. B01 signal에 배터리 용량·Wh가 없으므로 SOC %만으로 kWh를 환산하지 않고 둘 다 null/UNKNOWN.",
+    "[B01 확장 제안] kind=CHARGE와 fields의 batteryAddedKwh·billedKwh 이름은 B01 v0.2에 정의되지 않은 제안값. 팀 합의 시 이름만 바꾸면 됨."
+  ],
+  "events": [
+    { "eventId": "v01", "at": "2026-11-15T08:00:00+09:00", "signal": "READY", "value": true },
+    { "eventId": "v02", "at": "2026-11-15T08:00:00+09:00", "signal": "ODOMETER_KM", "value": 30200 },
+    { "eventId": "v03", "at": "2026-11-15T08:00:00+09:00", "signal": "SOC_PERCENT", "value": 40 },
+    { "eventId": "v04", "at": "2026-11-15T08:20:00+09:00", "signal": "ODOMETER_KM", "value": 30214 },
+    { "eventId": "v05", "at": "2026-11-15T08:20:00+09:00", "signal": "SOC_PERCENT", "value": 36 },
+    { "eventId": "v06", "at": "2026-11-15T08:20:00+09:00", "signal": "READY", "value": false },
+    { "eventId": "v07", "at": "2026-11-15T08:50:00+09:00", "signal": "SOC_PERCENT", "value": 80 },
+    { "eventId": "v08", "at": "2026-11-15T08:50:00+09:00", "signal": "READY", "value": true },
+    { "eventId": "v09", "at": "2026-11-15T08:50:00+09:00", "signal": "ODOMETER_KM", "value": 30214 },
+    { "eventId": "v10", "at": "2026-11-15T09:05:00+09:00", "signal": "ODOMETER_KM", "value": 30223 },
+    { "eventId": "v11", "at": "2026-11-15T09:05:00+09:00", "signal": "SOC_PERCENT", "value": 78 },
+    { "eventId": "v12", "at": "2026-11-15T09:05:00+09:00", "signal": "READY", "value": false }
+  ],
+  "expected": {
+    "schemaVersion": "0.2",
+    "environment": "MOCK",
+    "vehicleId": "demo-ev-01",
+    "legs": [
+      { "id": "leg-1", "startedAt": "2026-11-15T08:00:00+09:00", "endedAt": "2026-11-15T08:20:00+09:00", "startOdometerKm": 30200, "endOdometerKm": 30214, "activeDurationSec": 1200, "distanceKm": 14 },
+      { "id": "leg-2", "startedAt": "2026-11-15T08:50:00+09:00", "endedAt": "2026-11-15T09:05:00+09:00", "startOdometerKm": 30214, "endOdometerKm": 30223, "activeDurationSec": 900, "distanceKm": 9 }
+    ],
+    "journeys": [
+      { "id": "journey-1", "legIds": ["leg-1", "leg-2"], "groupingBasis": "MOCK_SCENARIO", "activeDurationSec": 2100, "distanceKm": 23 }
+    ],
+    "energyEvents": [
+      {
+        "id": "charge-1",
+        "kind": "CHARGE",
+        "detectedAt": "2026-11-15T08:50:00+09:00",
+        "occurredAt": null,
+        "odometerKm": 30214,
+        "recordStatus": "DETECTED_UNCONFIRMED",
+        "fields": {
+          "levelBeforePercent": { "value": 36, "provenance": "OBSERVED" },
+          "levelAfterPercent": { "value": 80, "provenance": "OBSERVED" },
+          "batteryAddedKwh": { "value": null, "provenance": "UNKNOWN" },
+          "billedKwh": { "value": null, "provenance": "UNKNOWN" },
+          "amountKrw": { "value": null, "provenance": "UNKNOWN" }
+        }
+      }
+    ]
+  }
+}
